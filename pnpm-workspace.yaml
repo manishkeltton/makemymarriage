@@ -1,0 +1,7 @@
+saveExact: true
+engineStrict: true
+# pnpm dependency build policy; this remains a single-package application.
+allowBuilds:
+  "@parcel/watcher": true
+  "@swc/core": true
+  unrs-resolver: true

@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #7c2846;
+  --color-canvas: #fffaf7;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: #262026;
+  font-family: Arial, "Noto Sans Devanagari", sans-serif;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 4px;
+}
