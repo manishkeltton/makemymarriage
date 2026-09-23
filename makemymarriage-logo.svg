@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <rect width="48" height="48" rx="12" fill="#F5EDEF"/>
+  <!-- Two overlapping graceful loops / paths joining in the center into an elegant abstract M -->
+  <path d="M12 34V20C12 15.5817 15.5817 12 20 12C22.6 12 24 13.8 24 16.5V32" stroke="#762B3A" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M36 34V20C36 15.5817 32.4183 12 28 12C25.4 12 24 13.8 24 16.5V32" stroke="#762B3A" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Subtle collaboration knot/point of unity -->
+  <circle cx="24" cy="20" r="2.5" fill="#762B3A"/>
+</svg>

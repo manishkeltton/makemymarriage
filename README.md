@@ -1,6 +1,6 @@
 # MakeMyMarriage
 
-Foundation scaffold for a modular-monolith wedding planning application. This repository does not yet implement authentication, wedding management, or any other product feature. Existing design documents in `docs/` are the architecture baseline.
+A modular-monolith wedding planning application with a public marketing homepage. Authentication and wedding management remain scaffold placeholders. Existing design documents in `docs/` are the architecture baseline.
 
 ## Local setup
 
@@ -30,7 +30,8 @@ Lint fails on warnings as well as errors. Run lint and type checking explicitly;
 
 ## Route verification
 
-- `/`: English/Hindi scaffold landing page.
+- `/`: Stitch-based public homepage with responsive planning previews.
+- `/?lang=hi`: Hindi homepage; the header switches between English and Hindi.
 - `/login`: authentication route-group placeholder; no login behavior.
 - `/app`: application route-group placeholder; intentionally contains no private information or authentication claim.
 - `/w/example`: public-wedding route-group placeholder; no wedding lookup.
@@ -64,11 +65,11 @@ HTTP helpers preserve the design document's success/error envelopes and empty 20
 
 The logger reads validated configuration and emits allowlisted JSON fields. Unexpected failures include a fixed error category (for example `type` or `non-error`) plus request ID and route template. Raw exception names, messages, stacks and causes are never serialized. This deliberately limits diagnostics; add narrowly reviewed safe context at actual integration boundaries rather than dumping provider errors. Never put secrets into event names, route templates, IDs or explicit public errors. No external logging provider is installed.
 
-English/Hindi messages use next-intl. The root remains English and static; the bilingual preview marks Hindi with `lang="hi"`. User/site locale selection and whole-document locale behavior belong to their feature implementation. No locale cookies, global client state or provider stack is introduced. Styling uses Tailwind and small CSS tokens; no remote font download is needed for builds.
+English/Hindi homepage messages use next-intl with an explicit `lang` query parameter. The complete homepage subtree carries its language attribute; the root remains English for the other scaffold routes. User/site locale preferences belong to later features. No locale cookies or global provider stack is introduced. The homepage uses scoped CSS Modules and locally hosted Plus Jakarta Sans, with its license included. Builds require no font downloads.
 
 The root `noindex` setting is a scaffold default, not the final SEO policy. Marketing and public-wedding indexing must be set deliberately before launch. Likewise, `no-store` currently protects all wrapped HTTP responses; public caching will require an explicit publication/visibility invalidation design. Do not cache authenticated or token-specific results across requests.
 
-The bilingual landing page is a localization sample, not a complete Hindi application. Resolve the user/site locale and set the document language correctly when localized feature pages are implemented. Placeholder workspace routes remain public because they contain no private data; they do not demonstrate authentication or tenant isolation.
+Homepage components live in `src/components/marketing/`; sample numerical fixtures live in `demo-data.ts`, and copy lives in the English/Hindi `Home` namespaces. Wedding data and social-proof statistics are explicitly labelled as illustrative. Replace or remove sample customer counts and ratings before public launch. Ceremony selection and mobile navigation are local UI interactions. All account calls to action currently lead to `/login`; signup is not implemented. Gallery, guestbook, livestream, pricing and out-of-scope logistics are deferred. The homepage is server-rendered on demand because it reads the language query parameter. Other feature pages still need localization. Placeholder workspace routes remain public because they contain no private data; they do not demonstrate authentication or tenant isolation.
 
 ## Tests and later infrastructure
 
