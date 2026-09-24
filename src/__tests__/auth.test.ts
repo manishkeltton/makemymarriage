@@ -1,6 +1,4 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { loadEnvConfig } from "@next/env";
-loadEnvConfig(process.cwd());
 
 import { AuthService } from "../lib/services/auth.service";
 import { User } from "../lib/db/models/User";

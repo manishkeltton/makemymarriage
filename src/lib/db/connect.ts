@@ -32,13 +32,23 @@ export async function connectToDatabase() {
     return cached!.conn;
   }
 
+  // Reset stale cache if connection is not connected (0 = disconnected, 3 = disconnecting)
+  if (!mongoose.connection || mongoose.connection.readyState === 0 || mongoose.connection.readyState === 3) {
+    cached!.conn = null;
+    cached!.promise = null;
+  }
+
   const uri = getMongoUri();
 
   if (!cached!.promise) {
     const opts = {
-      bufferCommands: false,
       dbName: process.env.MONGODB_DB_NAME || "MakeMyMarriageDB",
       serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 1,
+      retryReads: true,
+      retryWrites: true,
     };
 
     const connectWithRetry = async (retries = 3, delay = 1000): Promise<typeof mongoose> => {
@@ -59,6 +69,7 @@ export async function connectToDatabase() {
   try {
     cached!.conn = await cached!.promise;
   } catch (e) {
+    cached!.conn = null;
     cached!.promise = null;
     throw e;
   }
