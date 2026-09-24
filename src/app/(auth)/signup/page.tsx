@@ -4,11 +4,12 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
+    name: "",
     email: "",
     password: "",
   });
@@ -23,7 +24,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/v1/auth/login", {
+      const res = await fetch("/api/v1/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -32,7 +33,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error?.message || "Invalid credentials");
+        throw new Error(data.error?.message || "Something went wrong");
       }
 
       // Redirect to workspace
@@ -47,9 +48,9 @@ export default function LoginPage() {
 
   return (
     <div>
-      <h2 className="font-headline-lg text-[28px] text-on-surface font-bold tracking-tight mb-2">Welcome back</h2>
+      <h2 className="font-headline-lg text-[28px] text-on-surface font-bold tracking-tight mb-2">Create your workspace</h2>
       <p className="font-body-md text-on-surface-variant mb-8">
-        Don&apos;t have an account? <Link href="/signup" className="text-primary-container font-semibold hover:underline">Create workspace</Link>
+        Already have an account? <Link href="/login" className="text-primary-container font-semibold hover:underline">Sign in</Link>
       </p>
 
       {error && (
@@ -59,6 +60,21 @@ export default function LoginPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label className="block font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant mb-2">
+            Your Full Name
+          </label>
+          <input
+            type="text"
+            name="name"
+            required
+            value={formData.name}
+            onChange={handleChange}
+            className="w-full px-4 py-3 bg-surface-container-low border border-surface-variant/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-container text-on-surface"
+            placeholder="Aarav Sharma"
+          />
+        </div>
+
         <div>
           <label className="block font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant mb-2">
             Email Address
@@ -75,18 +91,14 @@ export default function LoginPage() {
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">
-              Password
-            </label>
-            <Link href="/forgot-password" className="font-body-sm text-primary-container hover:underline">
-              Forgot password?
-            </Link>
-          </div>
+          <label className="block font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant mb-2">
+            Password
+          </label>
           <input
             type="password"
             name="password"
             required
+            minLength={8}
             value={formData.password}
             onChange={handleChange}
             className="w-full px-4 py-3 bg-surface-container-low border border-surface-variant/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-container text-on-surface"
@@ -99,9 +111,13 @@ export default function LoginPage() {
           disabled={loading}
           className="w-full mt-4 bg-primary-container hover:bg-[#5D1F2C] text-on-primary py-3.5 rounded-lg font-headline-sm text-body-lg transition-colors shadow-sm disabled:opacity-50"
         >
-          {loading ? "Signing in..." : "Sign In"}
+          {loading ? "Creating workspace..." : "Start Planning"}
         </button>
       </form>
+      
+      <p className="mt-6 text-center font-body-sm text-on-surface-variant">
+        By creating an account, you agree to our <Link href="/terms" className="underline">Terms of Service</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.
+      </p>
     </div>
   );
 }
