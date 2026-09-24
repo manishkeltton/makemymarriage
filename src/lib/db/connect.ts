@@ -1,9 +1,10 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/makemymarriage";
-
-if (!MONGODB_URI) {
-  throw new Error("Please define the MONGODB_URI environment variable");
+function getMongoUri(): string {
+  return (
+    process.env.MONGODB_URI ||
+    "mongodb+srv://kumarmanishgkv_db_user:rOBMahKdCKNV1jZd@makemymarriagecluster0.v60kxkl.mongodb.net"
+  );
 }
 
 /**
@@ -27,22 +28,32 @@ if (!cached) {
 }
 
 export async function connectToDatabase() {
-  if (cached!.conn) {
+  if (cached!.conn && mongoose.connection.readyState === 1) {
     return cached!.conn;
   }
 
-  const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/makemymarriage";
+  const uri = getMongoUri();
 
   if (!cached!.promise) {
     const opts = {
       bufferCommands: false,
       dbName: process.env.MONGODB_DB_NAME || "MakeMyMarriageDB",
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 15000,
     };
 
-    cached!.promise = mongoose.connect(uri, opts).then((mongoose) => {
-      return mongoose;
-    });
+    const connectWithRetry = async (retries = 3, delay = 1000): Promise<typeof mongoose> => {
+      try {
+        return await mongoose.connect(uri, opts);
+      } catch (err) {
+        if (retries > 0) {
+          await new Promise((res) => setTimeout(res, delay));
+          return connectWithRetry(retries - 1, delay * 1.5);
+        }
+        throw err;
+      }
+    };
+
+    cached!.promise = connectWithRetry();
   }
   
   try {

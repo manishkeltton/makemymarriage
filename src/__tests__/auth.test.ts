@@ -20,13 +20,15 @@ vi.mock("next/headers", () => ({
 describe("AuthService Integration Tests", () => {
   beforeAll(async () => {
     await connectToDatabase();
-  }, 30000);
+  }, 60000);
 
   afterAll(async () => {
-    // Cleanup test data
-    await User.deleteMany({ email: /@test\.com$/ });
-    await Session.deleteMany({});
-    await PasswordResetToken.deleteMany({});
+    // Cleanup test data if connected
+    if (User.db.readyState === 1) {
+      await User.deleteMany({ email: /@test\.com$/ });
+      await Session.deleteMany({});
+      await PasswordResetToken.deleteMany({});
+    }
   });
 
   const testEmail = `testuser_${Date.now()}@test.com`;

@@ -27,6 +27,13 @@ vi.mock("../modules/weddings/models/wedding-member.model", () => ({
   },
 }));
 
+vi.mock("../modules/events/repositories/event.repository", () => ({
+  EventRepository: {
+    findEventsByWeddingId: vi.fn().mockResolvedValue([]),
+    findNextUpcomingEvent: vi.fn().mockResolvedValue(null),
+  },
+}));
+
 describe("WeddingService Unit Tests", () => {
   const fakeUserId = "507f1f77bcf86cd799439011";
   const fakeWeddingId = "507f1f77bcf86cd799439012";

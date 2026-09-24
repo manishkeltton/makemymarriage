@@ -1,17 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrlParam = searchParams.get("returnUrl") || "";
+  const emailParam = searchParams.get("email") || "";
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [formData, setFormData] = useState({
-    email: "",
+    email: emailParam,
     password: "",
   });
+
+
+
+  const getSafeReturnUrl = (url: string) => {
+    if (url && url.startsWith("/") && !url.startsWith("//")) {
+      return url;
+    }
+    return "/workspace";
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -21,6 +35,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setShowSignupPrompt(false);
 
     try {
       const res = await fetch("/api/v1/auth/login", {
@@ -32,11 +47,19 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error?.message || "Invalid credentials");
+        const msg = data.error?.message || "Invalid credentials";
+        if (
+          msg.toLowerCase().includes("not exist") ||
+          msg.toLowerCase().includes("invalid credentials") ||
+          msg.toLowerCase().includes("user not found")
+        ) {
+          setShowSignupPrompt(true);
+        }
+        throw new Error(msg);
       }
 
-      // Redirect to workspace
-      router.push("/workspace");
+      const targetUrl = getSafeReturnUrl(returnUrlParam);
+      router.push(targetUrl);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -45,16 +68,32 @@ export default function LoginPage() {
     }
   };
 
+  const signupLink = `/signup${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+
   return (
     <div>
       <h2 className="font-headline-lg text-[28px] text-on-surface font-bold tracking-tight mb-2">Welcome back</h2>
       <p className="font-body-md text-on-surface-variant mb-8">
-        Don&apos;t have an account? <Link href="/signup" className="text-primary-container font-semibold hover:underline">Create workspace</Link>
+        Don&apos;t have an account?{" "}
+        <Link href={signupLink} className="text-primary-container font-semibold hover:underline">
+          Create account
+        </Link>
       </p>
 
       {error && (
-        <div className="bg-error-container text-on-error-container p-4 rounded-lg mb-6 font-body-sm">
-          {error}
+        <div className="bg-error-container text-on-error-container p-4 rounded-lg mb-6 font-body-sm space-y-2">
+          <p>{error}</p>
+          {showSignupPrompt && (
+            <div className="pt-2.5 border-t border-on-error-container/20">
+              <p className="font-semibold text-xs text-on-error-container">Don&apos;t have an account yet?</p>
+              <Link
+                href={`/signup?returnUrl=${encodeURIComponent(returnUrlParam)}&email=${encodeURIComponent(formData.email)}`}
+                className="inline-block mt-1.5 px-3 py-1.5 bg-primary-container text-on-primary font-bold text-xs rounded hover:bg-primary transition-colors shadow-xs"
+              >
+                Create Account with {formData.email || "this email"}
+              </Link>
+            </div>
+          )}
         </div>
       )}
 
@@ -103,5 +142,13 @@ export default function LoginPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-center text-xs text-on-surface-variant">Loading login...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

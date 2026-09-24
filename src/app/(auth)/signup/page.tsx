@@ -1,18 +1,32 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrlParam = searchParams.get("returnUrl") || "";
+  const emailParam = searchParams.get("email") || "";
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
+    email: emailParam,
     password: "",
   });
+
+
+
+  const getSafeReturnUrl = (url: string) => {
+    if (url && url.startsWith("/") && !url.startsWith("//")) {
+      return url;
+    }
+    return "/workspace";
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -22,6 +36,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setShowLoginPrompt(false);
 
     try {
       const res = await fetch("/api/v1/auth/signup", {
@@ -33,11 +48,19 @@ export default function SignupPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error?.message || "Something went wrong");
+        const msg = data.error?.message || "Something went wrong";
+        if (
+          msg.toLowerCase().includes("already exists") ||
+          msg.toLowerCase().includes("registered") ||
+          msg.toLowerCase().includes("duplicate")
+        ) {
+          setShowLoginPrompt(true);
+        }
+        throw new Error(msg);
       }
 
-      // Redirect to workspace
-      router.push("/workspace");
+      const targetUrl = getSafeReturnUrl(returnUrlParam);
+      router.push(targetUrl);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -46,16 +69,32 @@ export default function SignupPage() {
     }
   };
 
+  const loginLink = `/login${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+
   return (
     <div>
-      <h2 className="font-headline-lg text-[28px] text-on-surface font-bold tracking-tight mb-2">Create your workspace</h2>
+      <h2 className="font-headline-lg text-[28px] text-on-surface font-bold tracking-tight mb-2">Create your account</h2>
       <p className="font-body-md text-on-surface-variant mb-8">
-        Already have an account? <Link href="/login" className="text-primary-container font-semibold hover:underline">Sign in</Link>
+        Already have an account?{" "}
+        <Link href={loginLink} className="text-primary-container font-semibold hover:underline">
+          Sign in
+        </Link>
       </p>
 
       {error && (
-        <div className="bg-error-container text-on-error-container p-4 rounded-lg mb-6 font-body-sm">
-          {error}
+        <div className="bg-error-container text-on-error-container p-4 rounded-lg mb-6 font-body-sm space-y-2">
+          <p>{error}</p>
+          {showLoginPrompt && (
+            <div className="pt-2.5 border-t border-on-error-container/20">
+              <p className="font-semibold text-xs text-on-error-container">Account already exists with this email</p>
+              <Link
+                href={`/login?returnUrl=${encodeURIComponent(returnUrlParam)}&email=${encodeURIComponent(formData.email)}`}
+                className="inline-block mt-1.5 px-3 py-1.5 bg-primary-container text-on-primary font-bold text-xs rounded hover:bg-primary transition-colors shadow-xs"
+              >
+                Sign In with {formData.email}
+              </Link>
+            </div>
+          )}
         </div>
       )}
 
@@ -111,13 +150,21 @@ export default function SignupPage() {
           disabled={loading}
           className="w-full mt-4 bg-primary-container hover:bg-[#5D1F2C] text-on-primary py-3.5 rounded-lg font-headline-sm text-body-lg transition-colors shadow-sm disabled:opacity-50"
         >
-          {loading ? "Creating workspace..." : "Start Planning"}
+          {loading ? "Creating account..." : "Create Account"}
         </button>
       </form>
-      
+
       <p className="mt-6 text-center font-body-sm text-on-surface-variant">
         By creating an account, you agree to our <Link href="/terms" className="underline">Terms of Service</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.
       </p>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-center text-xs text-on-surface-variant">Loading signup...</div>}>
+      <SignupForm />
+    </Suspense>
   );
 }

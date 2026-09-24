@@ -5,6 +5,9 @@ import { WeddingRepository, UpdateWeddingParams } from "../repositories/wedding.
 import { WeddingMemberRepository } from "../repositories/wedding-member.repository";
 import { WeddingDTO, WeddingMemberDTO, toWeddingDTO, toWeddingMemberDTO } from "../dto/wedding.dto";
 
+import { EventRepository } from "@/modules/events/repositories/event.repository";
+import { toEventDTO, EventDTO } from "@/modules/events/dto/event.dto";
+
 export interface CreateWeddingDTO {
   title: string;
   bride: {
@@ -30,6 +33,7 @@ export interface DashboardSummaryDTO {
     status: string;
   };
   userRole: "ADMIN" | "MANAGER" | "ORGANISER";
+  nextEvent?: EventDTO | null;
   stats: {
     totalEvents: number;
     totalTasks: number;
@@ -257,6 +261,11 @@ export class WeddingService {
     const daysRemaining = this.calculateDaysRemaining(new Date(wedding.primaryWeddingDate));
     const totalTeamMembers = await WeddingMemberRepository.countActiveMembers(weddingId);
 
+    const allEvents = await EventRepository.findEventsByWeddingId({ weddingId });
+    const totalEvents = allEvents.length;
+    const nextEventDoc = await EventRepository.findNextUpcomingEvent({ weddingId });
+    const nextEvent = nextEventDoc ? toEventDTO(nextEventDoc) : null;
+
     return {
       success: true,
       data: {
@@ -271,8 +280,9 @@ export class WeddingService {
           status: wedding.status,
         },
         userRole: member.role,
+        nextEvent,
         stats: {
-          totalEvents: 0,
+          totalEvents,
           totalTasks: 0,
           completedTasks: 0,
           pendingTasks: 0,

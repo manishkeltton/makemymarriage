@@ -45,7 +45,7 @@ export function WorkspaceSidebar({
 
   const planningNav = [
     { name: "Dashboard", href: navPrefix, icon: "space_dashboard", exact: true },
-    { name: "Events", href: `${navPrefix}/events`, icon: "calendar_month", comingSoon: true },
+    { name: "Events", href: `${navPrefix}/events`, icon: "calendar_month", comingSoon: false },
     { name: "Tasks", href: `${navPrefix}/tasks`, icon: "check_circle", comingSoon: true },
     { name: "Guests", href: `${navPrefix}/guests`, icon: "group", comingSoon: true },
     { name: "Vendors", href: `${navPrefix}/vendors`, icon: "storefront", comingSoon: true },
@@ -61,7 +61,7 @@ export function WorkspaceSidebar({
   ];
 
   const governanceNav = [
-    { name: "Team", href: `${navPrefix}/team`, icon: "shield_person", comingSoon: true },
+    { name: "Team", href: `${navPrefix}/team`, icon: "shield_person", comingSoon: false },
     { name: "Settings", href: `${navPrefix}/settings`, icon: "tune", exact: false },
   ];
 

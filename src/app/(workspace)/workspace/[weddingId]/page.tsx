@@ -258,13 +258,13 @@ export default async function WorkspaceDashboardPage({
                   and expenses around each ceremony.
                 </p>
                 <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <ActionButton
-                    message="Events feature module coming next!"
+                  <Link
+                    href={`/workspace/${weddingId}/events`}
                     className="h-[42px] px-6 rounded-lg bg-primary-container hover:bg-primary text-on-primary font-headline-sm text-xs font-semibold flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-[0.98]"
                   >
                     <span className="material-symbols-outlined text-[20px]">add</span>
                     <span>Add Your First Event</span>
-                  </ActionButton>
+                  </Link>
                   <div className="flex items-center text-on-surface-variant font-label-md text-xs">
                     <span className="material-symbols-outlined text-[18px] mr-1 text-secondary">
                       verified
@@ -411,13 +411,13 @@ export default async function WorkspaceDashboardPage({
               </p>
             </div>
             <div className="pt-4">
-              <ActionButton
-                message="Events feature module coming next!"
+              <Link
+                href={`/workspace/${weddingId}/events`}
                 className="font-headline-sm text-xs text-primary-container font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
                 <span>Configure venues</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-              </ActionButton>
+              </Link>
             </div>
           </div>
 
