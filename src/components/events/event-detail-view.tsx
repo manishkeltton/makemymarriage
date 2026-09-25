@@ -175,7 +175,7 @@ export function EventDetailView({ weddingId, initialEvent }: EventDetailViewProp
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as ActiveTab)}
+            onClick={() => { if (tab.id === "tasks" || tab.id === "documents") router.push(`/workspace/${weddingId}/${tab.id}?eventId=${event.id}`); else setActiveTab(tab.id as ActiveTab); }}
             className={`px-4 py-3 font-label-md text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
               activeTab === tab.id
                 ? "border-primary-container text-primary-container"

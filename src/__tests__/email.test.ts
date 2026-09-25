@@ -4,7 +4,7 @@ import { EmailJob } from "../lib/db/models/EmailJob";
 vi.mock("../lib/db/connect", () => ({ connectToDatabase: vi.fn() }));
 vi.mock("../lib/db/models/EmailJob", () => ({ EmailJob: { findOneAndUpdate: vi.fn() } }));
 describe("invitation email delivery", () => {
-  let job: any;
+  let job: Record<string, unknown>;
   beforeEach(() => {
     job = { to: "guest@example.com", templateData: { weddingTitle: "<img src=x>", inviteUrl: "https://example.com/invite/token" }, save: vi.fn(), status: "PROCESSING" };
     vi.mocked(EmailJob.findOneAndUpdate).mockResolvedValue(job);

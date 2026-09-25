@@ -1,3 +1,4 @@
+vi.mock("@/modules/tasks/services/task.service", () => ({ TaskService: { summary: vi.fn().mockResolvedValue({ total: 0, completed: 0, pending: 0, overdue: 0, percent: 0, overdueTasks: [] }) } }));
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import mongoose from "mongoose";
 import { WeddingService } from "../modules/weddings/services/wedding.service";
@@ -31,6 +32,20 @@ vi.mock("../modules/events/repositories/event.repository", () => ({
   EventRepository: {
     findEventsByWeddingId: vi.fn().mockResolvedValue([]),
     findNextUpcomingEvent: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+vi.mock("../modules/tasks/repositories/task.repository", () => ({
+  TaskRepository: {
+    countTaskMetrics: vi.fn().mockResolvedValue({
+      totalTasks: 0,
+      completedTasks: 0,
+      inProgressTasks: 0,
+      todoTasks: 0,
+      overdueTasks: 0,
+      upcomingTasks: 0,
+    }),
+    findTasksByFilters: vi.fn().mockResolvedValue({ tasks: [], hasMore: false, totalCount: 0 }),
   },
 }));
 

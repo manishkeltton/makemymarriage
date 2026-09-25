@@ -1,3 +1,6 @@
+if (!process.env.MONGODB_URI) {
+  process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/MakeMyMarriageDB";
+}
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 
 import { AuthService } from "../lib/services/auth.service";
@@ -17,6 +20,7 @@ vi.mock("next/headers", () => ({
 // Note: These tests hit the actual configured database.
 describe("AuthService Integration Tests", () => {
   beforeAll(async () => {
+    process.env.MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/makemymarriage";
     await connectToDatabase();
   }, 60000);
 

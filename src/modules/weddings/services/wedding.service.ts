@@ -1,3 +1,4 @@
+import { TaskRepository } from "@/modules/tasks/repositories/task.repository";
 import mongoose, { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
 import { IGeneralLocation } from "../models/wedding.model";
@@ -34,11 +35,14 @@ export interface DashboardSummaryDTO {
   };
   userRole: "ADMIN" | "MANAGER" | "ORGANISER";
   nextEvent?: EventDTO | null;
+  overdueTaskSummary?: Array<{ id: string; title: string; dueAt?: string }>;
   stats: {
     totalEvents: number;
     totalTasks: number;
     completedTasks: number;
     pendingTasks: number;
+    overdueTasks: number;
+    taskProgress: number;
     totalGuests: number;
     attendingGuests: number;
     totalTeamMembers: number;
@@ -259,12 +263,30 @@ export class WeddingService {
     const { wedding, member } = access.data;
 
     const daysRemaining = this.calculateDaysRemaining(new Date(wedding.primaryWeddingDate));
+    const taskMetrics = await TaskRepository.countTaskMetrics(weddingId);
     const totalTeamMembers = await WeddingMemberRepository.countActiveMembers(weddingId);
 
     const allEvents = await EventRepository.findEventsByWeddingId({ weddingId });
     const totalEvents = allEvents.length;
     const nextEventDoc = await EventRepository.findNextUpcomingEvent({ weddingId });
     const nextEvent = nextEventDoc ? toEventDTO(nextEventDoc) : null;
+
+    const taskProgress = taskMetrics.totalTasks > 0
+      ? Math.round((taskMetrics.completedTasks / taskMetrics.totalTasks) * 100)
+      : 0;
+
+    const overdueResult = await TaskRepository.findTasksByFilters({
+      weddingId,
+      dueBefore: new Date(),
+      limit: 5,
+    });
+    const overdueTasksList = overdueResult.tasks
+      .filter((t) => t.status !== "COMPLETED")
+      .map((t) => ({
+        id: t._id.toString(),
+        title: t.title,
+        dueAt: t.dueAt ? t.dueAt.toISOString() : undefined,
+      }));
 
     return {
       success: true,
@@ -281,11 +303,14 @@ export class WeddingService {
         },
         userRole: member.role,
         nextEvent,
+        overdueTaskSummary: overdueTasksList,
         stats: {
           totalEvents,
-          totalTasks: 0,
-          completedTasks: 0,
-          pendingTasks: 0,
+          totalTasks: taskMetrics.totalTasks,
+          completedTasks: taskMetrics.completedTasks,
+          pendingTasks: taskMetrics.inProgressTasks + taskMetrics.todoTasks,
+          overdueTasks: taskMetrics.overdueTasks,
+          taskProgress,
           totalGuests: 0,
           attendingGuests: 0,
           totalTeamMembers,

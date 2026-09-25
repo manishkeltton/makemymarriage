@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { NotificationCenter } from "./NotificationCenter";
 import { useWedding } from "./wedding-context";
 
 export interface WorkspaceHeaderProps {
@@ -13,6 +15,7 @@ export interface WorkspaceHeaderProps {
 }
 
 export function WorkspaceHeader({ user, onOpenMobileSidebar }: WorkspaceHeaderProps) {
+  const router = useRouter();
   const { activeWedding } = useWedding();
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -69,16 +72,7 @@ export function WorkspaceHeader({ user, onOpenMobileSidebar }: WorkspaceHeaderPr
           </span>
         </div>
 
-        {/* Notifications Trigger */}
-        <button
-          type="button"
-          onClick={() => alert("No new notifications")}
-          className="relative p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"
-          aria-label="Notifications"
-        >
-          <span className="material-symbols-outlined text-[20px]">notifications</span>
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-error ring-2 ring-surface" />
-        </button>
+        <NotificationCenter weddingId={activeWedding?.id} />
 
         {/* Add Dropdown Menu */}
         <div className="relative" ref={dropdownRef}>
@@ -112,7 +106,7 @@ export function WorkspaceHeader({ user, onOpenMobileSidebar }: WorkspaceHeaderPr
                 type="button"
                 onClick={() => {
                   setIsAddMenuOpen(false);
-                  alert("Tasks module coming next!");
+                  if (activeWedding) router.push(`/workspace/${activeWedding.id}/tasks`);
                 }}
                 className="w-full text-left px-3.5 py-2 hover:bg-surface-container-low text-xs font-medium text-on-surface flex items-center gap-2.5"
               >

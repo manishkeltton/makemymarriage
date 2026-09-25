@@ -290,15 +290,15 @@ export default async function WorkspaceDashboardPage({
                     <span>Add Guest Family</span>
                   </ActionButton>
 
-                  <ActionButton
-                    message="Tasks feature module coming next!"
+                  <Link
+                    href={`/workspace/${weddingId}/tasks`}
                     className="h-[34px] px-3.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-headline-sm text-xs font-semibold flex items-center gap-1.5 transition-colors border border-surface-container-high/60 shadow-xs cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-[16px] text-primary-container">
                       add_task
                     </span>
                     <span>Create Task</span>
-                  </ActionButton>
+                  </Link>
 
                   <ActionButton
                     message="Team governance module coming next!"
@@ -394,6 +394,14 @@ export default async function WorkspaceDashboardPage({
             </div>
           </section>
         ) : null}
+
+        <section className="rounded-xl border border-outline-variant/60 bg-white p-6">
+          <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">Task progress</h2><Link href={`/workspace/${weddingId}/tasks`} className="text-sm text-primary-container underline">View all tasks</Link></div>
+          <p className="my-3 text-sm">{stats.completedTasks} of {stats.totalTasks} completed · {stats.taskProgress}% · {stats.overdueTasks} overdue</p>
+          <progress value={stats.completedTasks} max={Math.max(1, stats.totalTasks)} className="w-full accent-primary-container" aria-label="Task completion" />
+          <ul className="mt-4 space-y-2">{dashboardResult.data.overdueTaskSummary?.map(task => <li key={task.id}><Link className="text-sm text-error underline" href={`/workspace/${weddingId}/tasks?taskId=${task.id}`}>{task.title} · due {task.dueAt ? new Date(task.dueAt).toLocaleDateString("en-IN") : ""}</Link></li>)}</ul>
+          {stats.overdueTasks === 0 && <p className="mt-3 text-sm text-on-surface-variant">No overdue tasks.</p>}
+        </section>
 
         {/* 3 Foundation Preview Cards */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">

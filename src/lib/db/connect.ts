@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 function getMongoUri(): string {
   return (
     process.env.MONGODB_URI ||
-    "mongodb+srv://kumarmanishgkv_db_user:rOBMahKdCKNV1jZd@makemymarriagecluster0.v60kxkl.mongodb.net"
+    "mongodb://127.0.0.1:27017/MakeMyMarriageDB"
   );
 }
 
@@ -43,7 +43,8 @@ export async function connectToDatabase() {
   if (!cached!.promise) {
     const opts = {
       dbName: process.env.MONGODB_DB_NAME || "MakeMyMarriageDB",
-      serverSelectionTimeoutMS: 15000,
+      serverSelectionTimeoutMS: 5000,
+      family: 4,
       socketTimeoutMS: 45000,
       maxPoolSize: 10,
       minPoolSize: 1,

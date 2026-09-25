@@ -13,7 +13,8 @@ This file tracks major implementation milestones. Add new features as work begin
 | Authentication                        | Completed | 2026-09-23   |
 | Workspace & Wedding Tenant Management | Completed | 2026-09-23   |
 | Event Management — Ceremonies & Venues| Completed | 2026-09-24   |
-| Team Management — Invites, Roles & Scope| In progress | 2026-09-25   |
+| Team Management — Invites, Roles & Scope| Completed | 2026-09-25   |
+| Planning Engine — Tasks & Documents   | Completed | 2026-09-25   |
 
 ## 1. Project scaffold
 
@@ -57,7 +58,7 @@ This file tracks major implementation milestones. Add new features as work begin
 
 ## 6. Team Management — Invitations, Roles, Permissions & Event Scope
 
-- **Status:** In progress
+- **Status:** Completed
 - **Last updated:** 2026-09-25
 - **Implemented:** Implemented complete end-to-end Team Management and Member Invitation milestone matching Stitch designs and system/database design docs. Created `WeddingMemberInvite` Mongoose model with `(weddingId, normalizedEmail, status)` and `UNIQUE(tokenHash)` indexes, plus MongoDB outbox `EmailJob` model and `EmailService` outbox dispatcher. Built cryptographically secure token hashing (`SHA-256`), tenant-safe repositories (`TeamMemberRepository`, `TeamInviteRepository`), `TeamService` with atomic invitation acceptance transactions, reusable `TeamAuthorization` helpers (`requireWeddingAdmin`, `requireWeddingPermission`, `requireEventAccess`), and Zod schemas (`createInviteSchema`, `updateMemberSchema`). Enforced mandatory **Final Admin Protection** preventing the demotion or removal of the last remaining Admin. Implemented REST APIs for member listing, role/permissions/scope editing, member soft deletion (`status = REMOVED`), invite creation, resend, revoke, public preview, and acceptance. Built Team workspace UI (`/workspace/[weddingId]/team`), `InviteMemberModal`, `EditMemberModal`, `RemoveMemberModal`, and Public Invitation Preview page (`/invite/[token]`) with account email matching enforcement and login/signup return flow. Comprehensive Vitest test suite added in `src/__tests__/team.test.ts`.
 - **Key files:** `src/modules/team/`, `src/app/api/v1/weddings/[weddingId]/members/`, `src/app/api/v1/weddings/[weddingId]/member-invites/`, `src/app/api/v1/public/member-invites/`, `src/components/team/`, `src/app/(workspace)/workspace/[weddingId]/team/`, `src/app/invite/[token]/`.
@@ -65,11 +66,30 @@ This file tracks major implementation milestones. Add new features as work begin
 
 ### Invitation delivery correction — 2026-09-25
 
-- Preserved the 2026-09-24 team implementation milestone; live email delivery requires further deployment validation.
+- Preserved the 2026-09-24 team implementation milestone; live email delivery requires further delivery validation.
 - Dispatch is awaited during create/resend, jobs are claimed atomically, and missing settings, provider rejection, and network timeouts are recorded as FAILED instead of mock SENT results. Provider acceptance is exposed in create/resend responses and UI; shareable links remain available on delivery failure. Email HTML escapes user content.
 - Invitation links prefer APP_ORIGIN, support the existing NEXT_PUBLIC_APP_URL and Vercel production-domain fallback, and reject localhost/HTTP in production. URL configuration is checked before creating or rotating invitation tokens.
 - Validation: email delivery regression tests, existing team tests, and TypeScript check. No live email sent.
 - Remaining: configure RESEND_API_KEY and a verified RESEND_FROM_EMAIL, set the production APP_ORIGIN, redeploy, and verify inbox delivery plus acceptance with the invited account. SENT means provider acceptance, not confirmed inbox delivery. Failed jobs require manual Resend; no automatic retry worker or delivery webhook is implemented.
+
+## 7. Planning Engine — Tasks, Checklist, Documents & Notifications
+
+- **Status:** Completed
+- **Last updated:** 2026-09-25
+- **Implemented:** Implemented complete end-to-end Planning Engine milestone (Milestone 2) for Make My Marriage matching Stitch screens `c259d32691ef4a71965dad84de8a7da6`, `ec6c776e6b0141618944c2e2e5d7a417`, `66bf8c6ad196400a94bcd53be07fb6b4`, and `911e6587db94423e8983bb06085802cc`.
+  - **Models & Validation:** `TaskModel`, `TaskCommentModel`, `DocumentModel`, `NotificationModel` with strict `weddingId` compound indexing and non-self / non-circular dependency validations. Priority enum (`LOW`, `MEDIUM`, `HIGH`) and Status enum (`TODO`, `IN_PROGRESS`, `COMPLETED`).
+  - **Repositories & Services:** Built `TaskRepository`, `TaskCommentRepository`, `DocumentRepository`, `NotificationRepository`, `TaskService`, `DocumentService`, and `NotificationService` supporting task filtering, pagination, same-wedding assignee/event reference checks, task comment management, document uploads/links, and in-app notifications.
+  - **Predefined Checklist Generator:** Implemented 27 curated Hindu wedding checklist templates across 6 traditional categories (Venue, Catering, Photography, Decoration, Ceremony & Puja, Clothing) with auto-matching to workspace events.
+  - **REST APIs:** Full REST suite under `/api/v1/weddings/[weddingId]/tasks`, `/api/v1/weddings/[weddingId]/checklist/generate`, `/api/v1/weddings/[weddingId]/documents`, `/api/v1/notifications`.
+  - **Workspace UI & Headers:** Built Tasks workspace view (`/workspace/[weddingId]/tasks`) with List & Kanban views, search, category/priority/status filters, `ChecklistModal`, `TaskFormModal`, slide-over `TaskDetailDrawer` with real-time comment feed & document attachments, Documents repository page (`/workspace/[weddingId]/documents`), and header `NotificationCenter` dropdown menu with unread counter badges.
+  - **Dashboard Integration:** Updated workspace dashboard summary to calculate real task completion percentages, upcoming task counts, and overdue task alerts.
+  - **Testing & Build:** Added unit test suite in `src/__tests__/tasks.test.ts` (18 tests passing). Verified clean TypeScript build (`npm run typecheck`), strict zero-warning linter (`npm run lint`), and Next.js production build (`npm run build`).
+  - **Code Review & QA Readiness Verification (2026-09-25):**
+    - Resolved all approved P0 and P1 findings (`PLAN-P0-01` cross-wedding document IDOR validation, `PLAN-P1-01` multi-hop circular dependency detection, `PLAN-P1-02` in-place task update on repeat checklist generation, `PLAN-P1-03` role/active member authorization).
+    - Executed 23 Chrome browser QA scenarios via Puppeteer: 22 PASSED, 0 FAILED, 1 BLOCKED (`NTF-02` external email reminder worker awaiting production `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and cron worker).
+    - Verified strict React 19 effect compliance (`react-hooks/set-state-in-effect`), zero TypeScript errors, zero ESLint warnings/errors, and passing Vitest test suite.
+- **Key files:** `src/modules/tasks/`, `src/modules/documents/`, `src/modules/notifications/`, `src/components/tasks/`, `src/components/workspace/NotificationCenter.tsx`, `src/app/(workspace)/workspace/[weddingId]/tasks/`, `src/app/(workspace)/workspace/[weddingId]/documents/`, `src/__tests__/tasks.test.ts`.
+- **Scope:** Covers V1 task management, priority/status tracking, task dependencies, predefined Hindu wedding checklist generator, comments feed, document repository, in-app notifications, and dashboard task metrics. Subtasks are excluded in V1.
 
 ## Future entries
 
