@@ -10,11 +10,17 @@ export interface SendTeamInviteEmailParams {
   expiresAt: Date;
 }
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character]!);
+}
+
 export class EmailService {
   /**
    * Enqueues a team invitation email job in MongoDB outbox and attempts dispatch.
    */
-  static async enqueueTeamInviteEmail(params: SendTeamInviteEmailParams): Promise<void> {
+  static async enqueueTeamInviteEmail(params: SendTeamInviteEmailParams): Promise<boolean> {
     await connectToDatabase();
 
     const job = new EmailJob({
@@ -33,10 +39,8 @@ export class EmailService {
 
     await job.save();
 
-    // Trigger async background processing without blocking response
-    this.processPendingEmailJob(job._id.toString()).catch((err) => {
-      console.error("Error processing email job background dispatch:", err);
-    });
+    // Await delivery so serverless runtimes cannot stop it after the response.
+    return await this.processPendingEmailJob(job._id.toString());
   }
 
   /**
@@ -45,39 +49,40 @@ export class EmailService {
   static async processPendingEmailJob(jobId: string): Promise<boolean> {
     await connectToDatabase();
 
-    const job = await EmailJob.findById(jobId);
-    if (!job || job.status !== "PENDING") {
-      return false;
-    }
-
-    job.status = "PROCESSING";
-    job.lockedAt = new Date();
-    job.attempts += 1;
-    job.lastAttemptAt = new Date();
-    await job.save();
+    const job = await EmailJob.findOneAndUpdate(
+      { _id: jobId, status: "PENDING" },
+      { $set: { status: "PROCESSING", lockedAt: new Date(), lastAttemptAt: new Date() }, $inc: { attempts: 1 } },
+      { new: true },
+    );
+    if (!job) return false;
 
     try {
       // If RESEND_API_KEY environment variable is present, send email via Resend API
       const resendApiKey = process.env.RESEND_API_KEY;
-      if (resendApiKey) {
+      const from = process.env.RESEND_FROM_EMAIL?.trim();
+      if (!resendApiKey?.trim() || !from) {
+        throw new Error("Email delivery requires RESEND_API_KEY and RESEND_FROM_EMAIL");
+      }
+      {
         const response = await fetch("https://api.resend.com/emails", {
           method: "POST",
+          signal: AbortSignal.timeout(15000),
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${resendApiKey}`,
           },
           body: JSON.stringify({
-            from: process.env.RESEND_FROM_EMAIL || "MakeMyMarriage <invites@makemymarriage.com>",
+            from,
             to: [job.to],
-            subject: `You've been invited to join ${job.templateData.weddingTitle} on MakeMyMarriage`,
+            subject: `You've been invited to join ${escapeHtml(job.templateData.weddingTitle)} on MakeMyMarriage`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e0e0e0; rounded: 8px;">
                 <h2 style="color: #762b3a;">MakeMyMarriage Invitation</h2>
                 <p>Hello,</p>
-                <p><strong>${job.templateData.invitedByName}</strong> has invited you to join the wedding workspace <strong>“${job.templateData.weddingTitle}”</strong> as a <strong>${job.templateData.role}</strong>.</p>
+                <p><strong>${escapeHtml(job.templateData.invitedByName)}</strong> has invited you to join the wedding workspace <strong>“${escapeHtml(job.templateData.weddingTitle)}”</strong> as a <strong>${escapeHtml(job.templateData.role)}</strong>.</p>
                 <p>Click the link below to review and accept your invitation:</p>
                 <div style="margin: 24px 0;">
-                  <a href="${job.templateData.inviteUrl}" style="background-color: #762b3a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Accept Invitation</a>
+                  <a href="${escapeHtml(job.templateData.inviteUrl)}" style="background-color: #762b3a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Accept Invitation</a>
                 </div>
                 <p style="color: #666; font-size: 12px;">This invitation will expire on ${new Date(job.templateData.expiresAt as string).toLocaleDateString()}.</p>
               </div>
@@ -87,32 +92,17 @@ export class EmailService {
 
         if (response.ok) {
           const resData = await response.json();
+          if (typeof resData.id !== "string" || !resData.id) throw new Error("Resend returned no message ID");
           job.status = "SENT";
           job.sentAt = new Date();
           job.providerMessageId = resData.id;
           await job.save();
           return true;
         } else {
-          const errText = await response.text();
-          console.warn(`[EmailJob Resend API Warning ${response.status}] ${errText}`);
-          console.log(`[EmailJob Invite Link Fallback] Target: ${job.to} | URL: ${job.templateData.inviteUrl}`);
-
-          job.status = "SENT";
-          job.sentAt = new Date();
-          job.providerMessageId = `sandbox_fallback_${Date.now()}`;
-          job.lastError = `Resend API (${response.status}): ${errText}`;
-          await job.save();
-          return true;
+          throw new Error(`Resend rejected email (HTTP ${response.status}); check the Resend dashboard and verified sender domain`);
         }
-      } else {
-        // Fallback / Development mode logging
-        console.log(`[EmailJob Mock Dispatch] Invitation sent to ${job.to}: ${job.templateData.inviteUrl}`);
-        job.status = "SENT";
-        job.sentAt = new Date();
-        job.providerMessageId = `mock_${Date.now()}`;
-        await job.save();
-        return true;
       }
+
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Email dispatch failed";
       console.error("[EmailJob Exception]", errorMsg);

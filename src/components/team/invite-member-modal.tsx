@@ -34,6 +34,7 @@ export function InviteMemberModal({
   const [allEvents, setAllEvents] = useState(true);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
 
+  const [emailSent, setEmailSent] = useState(false);
   const [createdInviteUrl, setCreatedInviteUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -147,6 +148,7 @@ export function InviteMemberModal({
       onSuccess();
 
       if (data.data?.inviteUrl) {
+        setEmailSent(data.data.emailDelivery === "SENT");
         setCreatedInviteUrl(data.data.inviteUrl);
       } else {
         handleCloseModal();
@@ -186,10 +188,10 @@ export function InviteMemberModal({
             <div className="p-4 rounded-xl bg-secondary-container/30 border border-secondary/30 text-on-surface space-y-2">
               <div className="flex items-center gap-2 text-secondary font-bold text-sm">
                 <span className="material-symbols-outlined text-[20px]">check_circle</span>
-                <span>Invitation Enqueued for {email}</span>
+                <span>Invitation created for {email}</span>
               </div>
               <p className="text-xs text-on-surface-variant leading-relaxed">
-                An invitation email has been scheduled. You can also copy and share the direct link below via WhatsApp, Email, or Slack:
+                {emailSent ? "Invitation email submitted. You can also share the link below." : "The invitation was created, but the email could not be sent. Share the link below, or try Resend from the team page."}
               </p>
             </div>
 

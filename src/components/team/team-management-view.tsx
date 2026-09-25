@@ -88,15 +88,16 @@ export function TeamManagementView({
       const data = await res.json();
 
       if (res.ok && data.success) {
+        const deliveryMessage = data.data?.emailDelivery === "SENT" ? "Invitation email submitted." : "Email could not be sent. Share the new invitation link or try Resend again.";
         if (data.data?.inviteUrl) {
           try {
             await navigator.clipboard.writeText(data.data.inviteUrl);
-            setActionMessage(`Invitation resent & link copied to clipboard! URL: ${data.data.inviteUrl}`);
+            setActionMessage(`${deliveryMessage} Link copied: ${data.data.inviteUrl}`);
           } catch {
-            setActionMessage(`Invitation resent! Share link: ${data.data.inviteUrl}`);
+            setActionMessage(`${deliveryMessage} Share link: ${data.data.inviteUrl}`);
           }
         } else {
-          setActionMessage("Invitation resent successfully!");
+          setActionMessage(deliveryMessage);
         }
         refreshData();
       } else {

@@ -30,8 +30,16 @@ export class TeamService {
    * Helper to construct full public invitation URL.
    */
   public static getInviteUrl(rawToken: string): string {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    return `${baseUrl}/invite/${rawToken}`;
+    const baseUrl = process.env.APP_ORIGIN || process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined) ||
+      (process.env.NODE_ENV !== "production" ? "http://localhost:3000" : undefined);
+    if (!baseUrl) throw new Error("APP_ORIGIN is required for invitation links");
+    const url = new URL(baseUrl);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password ||
+        (process.env.NODE_ENV === "production" && (url.protocol !== "https:" || ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))) {
+      throw new Error("APP_ORIGIN must be a public HTTPS URL in production");
+    }
+    return new URL(`/invite/${encodeURIComponent(rawToken)}`, url.origin).toString();
   }
 
   /**
@@ -138,6 +146,7 @@ export class TeamService {
       // 3. Generate raw token & hash
       const rawToken = crypto.randomBytes(32).toString("hex");
       const tokenHash = this.hashToken(rawToken);
+      const inviteUrl = this.getInviteUrl(rawToken);
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
       // 4. Revoke existing pending invite for this email if present
@@ -186,10 +195,8 @@ export class TeamService {
       const inviterUser = await User.findById(userId);
       const weddingDoc = await WeddingRepository.findById(weddingId);
 
-      const inviteUrl = this.getInviteUrl(rawToken);
-
       // Enqueue email job
-      await EmailService.enqueueTeamInviteEmail({
+      const emailSent = await EmailService.enqueueTeamInviteEmail({
         toEmail: payload.email,
         invitedByName: inviterUser?.name || "A Wedding Admin",
         weddingTitle: weddingDoc?.title || "Wedding Workspace",
@@ -200,6 +207,7 @@ export class TeamService {
 
       const inviteDto = toPendingInviteDTO(inviteDoc);
       inviteDto.inviteUrl = inviteUrl;
+      inviteDto.emailDelivery = emailSent ? "SENT" : "FAILED";
 
       return { success: true, data: inviteDto };
     } catch (err: unknown) {
@@ -231,6 +239,7 @@ export class TeamService {
 
       const rawToken = crypto.randomBytes(32).toString("hex");
       const newTokenHash = this.hashToken(rawToken);
+      const inviteUrl = this.getInviteUrl(rawToken);
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       const updatedInvite = await TeamInviteRepository.refreshInviteForResend({
@@ -242,9 +251,8 @@ export class TeamService {
 
       const inviterUser = await User.findById(userId);
       const weddingDoc = await WeddingRepository.findById(weddingId);
-      const inviteUrl = this.getInviteUrl(rawToken);
 
-      await EmailService.enqueueTeamInviteEmail({
+      const emailSent = await EmailService.enqueueTeamInviteEmail({
         toEmail: invite.invitedEmail,
         invitedByName: inviterUser?.name || "A Wedding Admin",
         weddingTitle: weddingDoc?.title || "Wedding Workspace",
@@ -255,6 +263,7 @@ export class TeamService {
 
       const inviteDto = toPendingInviteDTO(updatedInvite!);
       inviteDto.inviteUrl = inviteUrl;
+      inviteDto.emailDelivery = emailSent ? "SENT" : "FAILED";
 
       return { success: true, data: inviteDto };
     } catch (err: unknown) {

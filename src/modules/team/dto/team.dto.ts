@@ -52,6 +52,7 @@ export interface PendingInviteDTO {
   invitedBy: string;
   createdAt: string;
   inviteUrl?: string;
+  emailDelivery?: "SENT" | "FAILED";
 }
 
 export interface PublicInvitePreviewDTO {

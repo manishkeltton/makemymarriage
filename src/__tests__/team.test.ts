@@ -332,3 +332,19 @@ describe("Team Management Unit & Integration Tests", () => {
     });
   });
 });
+
+
+describe("Invitation URL configuration", () => {
+  it("uses APP_ORIGIN for invitation links", () => {
+    vi.stubEnv("APP_ORIGIN", "https://makemymarriage.vercel.app/");
+    try {
+      expect(TeamService.getInviteUrl("token")).toBe("https://makemymarriage.vercel.app/invite/token");
+    } finally { vi.unstubAllEnvs(); }
+  });
+  it("rejects a local origin in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "http://localhost:3000");
+    try { expect(() => TeamService.getInviteUrl("token")).toThrow("public HTTPS"); }
+    finally { vi.unstubAllEnvs(); }
+  });
+});

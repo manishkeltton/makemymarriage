@@ -1,6 +1,6 @@
 # Make My Marriage — Project Status
 
-Last updated: 2026-09-24
+Last updated: 2026-09-25
 
 This file tracks major implementation milestones. Add new features as work begins and update existing entries as they progress. Dates below indicate when progress was recorded, not necessarily when a feature was originally completed.
 
@@ -13,7 +13,7 @@ This file tracks major implementation milestones. Add new features as work begin
 | Authentication                        | Completed | 2026-09-23   |
 | Workspace & Wedding Tenant Management | Completed | 2026-09-23   |
 | Event Management — Ceremonies & Venues| Completed | 2026-09-24   |
-| Team Management — Invites, Roles & Scope| Completed | 2026-09-24   |
+| Team Management — Invites, Roles & Scope| In progress | 2026-09-25   |
 
 ## 1. Project scaffold
 
@@ -57,11 +57,19 @@ This file tracks major implementation milestones. Add new features as work begin
 
 ## 6. Team Management — Invitations, Roles, Permissions & Event Scope
 
-- **Status:** Completed
-- **Last updated:** 2026-09-24
+- **Status:** In progress
+- **Last updated:** 2026-09-25
 - **Implemented:** Implemented complete end-to-end Team Management and Member Invitation milestone matching Stitch designs and system/database design docs. Created `WeddingMemberInvite` Mongoose model with `(weddingId, normalizedEmail, status)` and `UNIQUE(tokenHash)` indexes, plus MongoDB outbox `EmailJob` model and `EmailService` outbox dispatcher. Built cryptographically secure token hashing (`SHA-256`), tenant-safe repositories (`TeamMemberRepository`, `TeamInviteRepository`), `TeamService` with atomic invitation acceptance transactions, reusable `TeamAuthorization` helpers (`requireWeddingAdmin`, `requireWeddingPermission`, `requireEventAccess`), and Zod schemas (`createInviteSchema`, `updateMemberSchema`). Enforced mandatory **Final Admin Protection** preventing the demotion or removal of the last remaining Admin. Implemented REST APIs for member listing, role/permissions/scope editing, member soft deletion (`status = REMOVED`), invite creation, resend, revoke, public preview, and acceptance. Built Team workspace UI (`/workspace/[weddingId]/team`), `InviteMemberModal`, `EditMemberModal`, `RemoveMemberModal`, and Public Invitation Preview page (`/invite/[token]`) with account email matching enforcement and login/signup return flow. Comprehensive Vitest test suite added in `src/__tests__/team.test.ts`.
 - **Key files:** `src/modules/team/`, `src/app/api/v1/weddings/[weddingId]/members/`, `src/app/api/v1/weddings/[weddingId]/member-invites/`, `src/app/api/v1/public/member-invites/`, `src/components/team/`, `src/app/(workspace)/workspace/[weddingId]/team/`, `src/app/invite/[token]/`.
 - **Scope:** Covers team member listing, access management, invitations, secure tokens, resend/revoke, public preview, acceptance flow, role/permissions/scope editing, member removal, final Admin protection, responsive Stitch UI, and test suite.
+
+### Invitation delivery correction — 2026-09-25
+
+- Preserved the 2026-09-24 team implementation milestone; live email delivery requires further deployment validation.
+- Dispatch is awaited during create/resend, jobs are claimed atomically, and missing settings, provider rejection, and network timeouts are recorded as FAILED instead of mock SENT results. Provider acceptance is exposed in create/resend responses and UI; shareable links remain available on delivery failure. Email HTML escapes user content.
+- Invitation links prefer APP_ORIGIN, support the existing NEXT_PUBLIC_APP_URL and Vercel production-domain fallback, and reject localhost/HTTP in production. URL configuration is checked before creating or rotating invitation tokens.
+- Validation: email delivery regression tests, existing team tests, and TypeScript check. No live email sent.
+- Remaining: configure RESEND_API_KEY and a verified RESEND_FROM_EMAIL, set the production APP_ORIGIN, redeploy, and verify inbox delivery plus acceptance with the invited account. SENT means provider acceptance, not confirmed inbox delivery. Failed jobs require manual Resend; no automatic retry worker or delivery webhook is implemented.
 
 ## Future entries
 
