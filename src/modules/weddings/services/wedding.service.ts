@@ -8,6 +8,8 @@ import { WeddingDTO, WeddingMemberDTO, toWeddingDTO, toWeddingMemberDTO } from "
 
 import { EventRepository } from "@/modules/events/repositories/event.repository";
 import { toEventDTO, EventDTO } from "@/modules/events/dto/event.dto";
+import { ExpenseRepository } from "@/modules/expenses/repositories/expense.repository";
+import { ExpensePaymentRepository } from "@/modules/expenses/repositories/expense-payment.repository";
 
 export interface CreateWeddingDTO {
   title: string;
@@ -46,6 +48,10 @@ export interface DashboardSummaryDTO {
     totalGuests: number;
     attendingGuests: number;
     totalTeamMembers: number;
+    totalBudgetPaise: number;
+    totalPaidPaise: number;
+    totalOutstandingPaise: number;
+    overduePaymentsCount: number;
   };
 }
 
@@ -288,6 +294,39 @@ export class WeddingService {
         dueAt: t.dueAt ? t.dueAt.toISOString() : undefined,
       }));
 
+    // Financial metrics calculation
+    const [expensesResult, paymentsResult] = await Promise.all([
+      ExpenseRepository.findExpensesByFilters({ weddingId, limit: 500 }),
+      ExpensePaymentRepository.findPaymentsByFilters({ weddingId, limit: 1000 }),
+    ]);
+
+    const activeExpenses = expensesResult.expenses.filter((e) => e.approvalStatus !== "REJECTED");
+    const activeExpenseIds = new Set(activeExpenses.map((e) => e._id.toString()));
+
+    const totalBudgetPaise = activeExpenses.reduce((sum, e) => sum + e.totalAmountPaise, 0);
+
+    let totalPaidPaise = 0;
+    let overduePaymentsCount = 0;
+    const now = Date.now();
+    const paidByExpenseMap = new Map<string, number>();
+
+    for (const p of paymentsResult.payments) {
+      const eId = p.expenseId.toString();
+      if (!activeExpenseIds.has(eId)) continue;
+      if (p.status === "PAID") {
+        totalPaidPaise += p.amountPaise;
+        paidByExpenseMap.set(eId, (paidByExpenseMap.get(eId) || 0) + p.amountPaise);
+      } else if (p.status === "PENDING" && p.dueAt && new Date(p.dueAt).getTime() < now) {
+        overduePaymentsCount++;
+      }
+    }
+
+    let totalOutstandingPaise = 0;
+    for (const e of activeExpenses) {
+      const paidForExp = paidByExpenseMap.get(e._id.toString()) || 0;
+      totalOutstandingPaise += Math.max(0, e.totalAmountPaise - paidForExp);
+    }
+
     return {
       success: true,
       data: {
@@ -314,6 +353,10 @@ export class WeddingService {
           totalGuests: 0,
           attendingGuests: 0,
           totalTeamMembers,
+          totalBudgetPaise,
+          totalPaidPaise,
+          totalOutstandingPaise,
+          overduePaymentsCount,
         },
       },
     };

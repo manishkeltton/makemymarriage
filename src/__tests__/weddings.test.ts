@@ -35,6 +35,18 @@ vi.mock("../modules/events/repositories/event.repository", () => ({
   },
 }));
 
+vi.mock("../modules/expenses/repositories/expense.repository", () => ({
+  ExpenseRepository: {
+    findExpensesByFilters: vi.fn().mockResolvedValue({ expenses: [], hasMore: false, totalCount: 0 }),
+  },
+}));
+
+vi.mock("../modules/expenses/repositories/expense-payment.repository", () => ({
+  ExpensePaymentRepository: {
+    findPaymentsByFilters: vi.fn().mockResolvedValue({ payments: [], hasMore: false, totalCount: 0 }),
+  },
+}));
+
 vi.mock("../modules/tasks/repositories/task.repository", () => ({
   TaskRepository: {
     countTaskMetrics: vi.fn().mockResolvedValue({

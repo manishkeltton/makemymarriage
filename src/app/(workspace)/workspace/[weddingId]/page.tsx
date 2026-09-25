@@ -6,6 +6,7 @@ import { AuthService } from "@/lib/services/auth.service";
 import { WeddingService } from "@/modules/weddings/services/wedding.service";
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 import { ActionButton } from "@/components/workspace/action-button";
+import { formatINR } from "@/lib/utils/money";
 
 export default async function WorkspaceDashboardPage({
   params,
@@ -202,12 +203,19 @@ export default async function WorkspaceDashboardPage({
             </div>
             <div>
               <div className="font-display-lg text-2xl font-bold text-on-surface">
-                ₹0{" "}
+                {formatINR(stats.totalBudgetPaise)}{" "}
                 <span className="font-body-md text-xs text-on-surface-variant font-normal">
                   tracked
                 </span>
               </div>
-              <p className="font-label-md text-xs text-on-surface-variant mt-1">₹0 paid</p>
+              <p className="font-label-md text-xs text-on-surface-variant mt-1">
+                {formatINR(stats.totalPaidPaise)} paid
+                {stats.overduePaymentsCount > 0 && (
+                  <span className="text-error font-semibold ml-1 font-mono text-[11px]">
+                    ({stats.overduePaymentsCount} overdue)
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         </section>
@@ -443,13 +451,13 @@ export default async function WorkspaceDashboardPage({
               </p>
             </div>
             <div className="pt-4">
-              <ActionButton
-                message="Vendors feature module coming next!"
+              <Link
+                href={`/workspace/${weddingId}/vendors`}
                 className="font-headline-sm text-xs text-primary-container font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
                 <span>Browse directory</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-              </ActionButton>
+              </Link>
             </div>
           </div>
 

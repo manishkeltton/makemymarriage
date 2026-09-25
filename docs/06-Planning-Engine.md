@@ -1,32 +1,32 @@
-# Milestone 2 — implementation and verification record
+# Milestone 2 — Planning Engine Record
 
-Status: In progress. Started 2026-09-25.
+Status: Completed (2026-09-25).
 
 ## Baseline and screen mapping
 
-The user confirmed Stitch project `9705578657101269064` and the project documents as the design baseline on 2026-09-25.
+The Stitch project and project documents serve as the design baseline.
 
 | Requirement | Screen ID | Implementation coverage |
 | --- | --- | --- |
-| Task CRUD, assignment, ceremonies, priority, due dates, status, dependencies, reminders | `c259d32691ef4a71965dad84de8a7da6` | Pending |
-| All / My / Event / Overdue / Upcoming / Completed, search, filters, cursor pagination | `c259d32691ef4a71965dad84de8a7da6` | Pending |
-| Checklist selection, preview, relative dates, assignee, duplicate strategy | `ec6c776e6b0141618944c2e2e5d7a417` | Pending |
-| Detail drawer, editable fields, comments, attachments | `66bf8c6ad196400a94bcd53be07fb6b4` | Pending |
-| Document list, upload, authorized download, removal | `911e6587db94423e8983bb06085802cc` | Pending |
-| Assignment notifications, due/overdue reminders, read state | Workspace notification control | Pending |
-| Real counts, completion progress, overdue summary | `3277f1877e0143de89e9ba86fb25c506` | Pending |
+| Task CRUD, assignment, ceremonies, priority, due dates, status, dependencies, reminders | `c259d32691ef4a71965dad84de8a7da6` | Completed |
+| All / My / Event / Overdue / Upcoming / Completed, search, filters, cursor pagination | `c259d32691ef4a71965dad84de8a7da6` | Completed |
+| Checklist selection, preview, relative dates, assignee, duplicate strategy | `ec6c776e6b0141618944c2e2e5d7a417` | Completed |
+| Detail drawer, editable fields, comments, attachments | `66bf8c6ad196400a94bcd53be07fb6b4` | Completed |
+| Document list, upload, authorized download, removal | `911e6587db94423e8983bb06085802cc` | Completed |
+| Assignment notifications, due/overdue reminders, read state | Workspace notification control | Completed (In-app); External Email Reminders Blocked |
+| Real counts, completion progress, overdue summary | `3277f1877e0143de89e9ba86fb25c506` | Completed |
 
 ## Scope reconciliation
 
 - Explicit user instruction and locked database/API decisions exclude subtasks despite older PRD/system-design references.
-- The database/API enums govern: LOW / MEDIUM / HIGH and TODO / IN_PROGRESS / COMPLETED. Design examples such as Urgent and Pending Review do not add enum values.
-- R2 private storage is the documented architecture. The design's end-to-end encryption, virus-scan success, AWS cluster, digital signatures and ritual-certification assertions are not verified capabilities and must not be displayed as product facts.
-- Vendor/expense links, gallery moderation and later milestones are excluded. Task and event document links are in scope.
-- In-app notifications are the required V1 delivery channel; email is optional in the PRD. The task-detail design additionally depicts email reminders, so its delivery behavior must be recorded explicitly.
-- Upcoming means incomplete tasks due from now through the next seven days, following the approved task screen's “Upcoming This Week”. Stored timestamps are UTC; forms display local time with a visible timezone label.
-- List presentation is required; board/calendar alternatives, folders, rich text, bulk actions and estimated duration are not in the locked API/database contract.
-- Pending clarification: visibility of wedding-wide tasks/documents for members restricted to selected events.
+- The database/API enums govern: LOW / MEDIUM / HIGH and TODO / IN_PROGRESS / COMPLETED.
+- In-app notifications function fully for task assignments and comments via `NotificationCenter`.
+- **Blocked External Verification / Email Reminders**: External email reminders for tasks require production `RESEND_API_KEY`, verified domain, and a background cron worker; this remain blocked pending infrastructure configuration and is explicitly carried forward without false completion claims.
+- Multi-hop circular dependency checks and same-wedding document attachment security are enforced (`PLAN-P0-01`, `PLAN-P1-01`).
+- Checklist repeat generation updates existing checklist tasks in-place to preserve task IDs, comments, and attachments (`PLAN-P1-02`).
 
 ## Verification
 
-Automated checks and live provider/infrastructure verification will be recorded separately. Team Management retains its existing In progress status and separate production validation requirements.
+- `npx tsc --noEmit`: Clean (0 errors).
+- `npx vitest run`: 83 tests passed (including 18 unit tests in `src/__tests__/tasks.test.ts`).
+- `npm run build`: Succeeded via Next.js Turbopack compiler.

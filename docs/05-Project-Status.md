@@ -15,6 +15,7 @@ This file tracks major implementation milestones. Add new features as work begin
 | Event Management — Ceremonies & Venues| Completed | 2026-09-24   |
 | Team Management — Invites, Roles & Scope| Completed | 2026-09-25   |
 | Planning Engine — Tasks & Documents   | Completed | 2026-09-25   |
+| Money & Vendors — Budget & Procurement | Completed | 2026-09-25   |
 
 ## 1. Project scaffold
 
@@ -90,6 +91,39 @@ This file tracks major implementation milestones. Add new features as work begin
     - Verified strict React 19 effect compliance (`react-hooks/set-state-in-effect`), zero TypeScript errors, zero ESLint warnings/errors, and passing Vitest test suite.
 - **Key files:** `src/modules/tasks/`, `src/modules/documents/`, `src/modules/notifications/`, `src/components/tasks/`, `src/components/workspace/NotificationCenter.tsx`, `src/app/(workspace)/workspace/[weddingId]/tasks/`, `src/app/(workspace)/workspace/[weddingId]/documents/`, `src/__tests__/tasks.test.ts`.
 - **Scope:** Covers V1 task management, priority/status tracking, task dependencies, predefined Hindu wedding checklist generator, comments feed, document repository, in-app notifications, and dashboard task metrics. Subtasks are excluded in V1.
+
+## 8. Money & Vendors — Budget & Procurement
+
+- **Status:** Completed
+- **Last updated:** 2026-09-25
+- **Implemented:** Implemented complete end-to-end Money & Vendors milestone (Milestone 3) for Make My Marriage matching connected Stitch workspace screens.
+  - **Shared Money Utilities:** Created `src/lib/utils/money.ts` for integer paise arithmetic (1 INR = 100 paise), loss-free decimal string conversion (`rupeesToPaise`), decimal rupee conversion (`paiseToRupees`), and Indian locale currency formatting (`formatINR`).
+  - **Vendor Procurement:** Created `Vendor` Mongoose model with compound indexes, `VendorRepository`, `VendorService`, Zod validation schemas (`createVendorSchema`, `updateVendorSchema`), DTO mapping (`toVendorDTO`), and REST APIs (`/api/v1/weddings/[weddingId]/vendors`). Implemented Vendors workspace view (`/workspace/[weddingId]/vendors/page.tsx`) with search, category filtering, ceremony linking, agreed budget tracking, and `VendorFormModal`. Unlinks `vendorId` from expenses upon vendor deletion.
+  - **Expenses & Single-step Approval:** Created `Expense` Mongoose model with single-step approval workflow (`PENDING`, `APPROVED`, `REJECTED`), `ExpenseRepository`, `ExpenseService`, Zod schemas (`createExpenseSchema`, `updateExpenseSchema`, `approveExpenseSchema`), DTO mapping (`toExpenseDTO`), and REST APIs (`/api/v1/weddings/[weddingId]/expenses`). Implemented Expenses workspace view (`/workspace/[weddingId]/expenses/page.tsx`), `ExpenseFormModal`, and `ExpenseDetailDrawer`. Cascades deletion to payment instalments when an expense is deleted. Excludes rejected expenses from active budget metrics.
+  - **Instalments & Payments:** Created `ExpensePayment` Mongoose model in separate `expense_payments` collection, `ExpensePaymentRepository`, Zod schemas (`createPaymentSchema`, `updatePaymentSchema`), DTO mapping (`toExpensePaymentDTO`), and REST APIs (`/api/v1/weddings/[weddingId]/expenses/[expenseId]/payments` and `/api/v1/weddings/[weddingId]/payments`). Implemented `PaymentFormModal`. Evaluates runtime derived `effectiveStatus = OVERDUE` when a `PENDING` payment's `dueAt` date is in the past.
+  - **Payer Attribution:** Tracks `paidBy` for `MEMBER` (validated against active workspace users) or `OTHER` (external contributor name). Computes payer contribution breakdowns.
+  - **Dashboard Integration:** Updated `WeddingService.getDashboardSummary` and the workspace dashboard hero KPI cards to render real tracked spend, confirmed paid totals, and overdue payment alerts.
+  - **Testing & Verification:** Added 24 unit & integration tests in `src/__tests__/vendors.test.ts` and `src/__tests__/expenses.test.ts`. Verified clean TypeScript compilation (`npx tsc --noEmit`) and passing test suite.
+  - **Senior Code Review P1 Fixes (2026-09-26):**
+    - Resolved `MONEY-P1-01`: Calculated `totalOutstandingPaise` as sum of per-expense outstanding balances `Math.max(0, amount - paid)` across active expenses in `ExpenseService.getFinanceSummary` and `WeddingService.getDashboardSummary`, preventing overpaid expenses from masking unpaid liabilities.
+    - Resolved `MONEY-P1-02`: Filtered out payments for `REJECTED` expenses in `VendorService.getVendors` and `getVendorById` when calculating vendor `totalPaidPaise`.
+    - Resolved `MONEY-P1-03`: Blocked payment creation on `REJECTED` expenses in `ExpenseService.createPayment`.
+    - Resolved `MONEY-P1-04`: Enforced `MEMBER` (active userId) and `OTHER` (non-empty name) payer validation in `ExpenseService.updatePayment`.
+    - Resolved `MONEY-P1-05`: Verified `existingPayment.expenseId.toString() === expenseId` in `ExpenseService.deletePayment` to prevent cross-expense payment deletion.
+- **Key files:** `src/lib/utils/money.ts`, `src/modules/vendors/`, `src/modules/expenses/`, `src/app/api/v1/weddings/[weddingId]/vendors/`, `src/app/api/v1/weddings/[weddingId]/expenses/`, `src/app/api/v1/weddings/[weddingId]/finance/`, `src/app/api/v1/weddings/[weddingId]/payments/`, `src/components/vendors/`, `src/components/expenses/`, `src/app/(workspace)/workspace/[weddingId]/vendors/`, `src/app/(workspace)/workspace/[weddingId]/expenses/`, `src/__tests__/vendors.test.ts`, `src/__tests__/expenses.test.ts`, `docs/07-Money-And-Vendors.md`.
+- **Scope:** Covers integer paise money calculations, vendor directory CRUD, expense CRUD, single-step approval, payment instalments, MEMBER vs OTHER payer attribution, private receipts/documents vault linking, finance summaries, and dashboard integration. Excludes payment processing gateways, vendor marketplace accounts, family settlements, multi-currency, and multi-step approval workflows.
+
+### Final Readiness Check — 2026-09-26
+
+- **Acceptance Matrix Verification:** Verified all 22 requirement areas across Vendor CRUD, Expense CRUD, Single-Step Approval, Instalments/Payments, Integer Paise Calculations, Overpayment Protection, Payer Tracking, Role Security, Multi-Tenant Isolation, and Dashboard Summaries.
+- **Chrome Manual QA Evidence:** Executed 22 end-to-end user journey test cases in Chrome browser (`http://localhost:3000`) via Puppeteer. Results: **22 PASS, 0 FAIL, 0 BLOCKED**. Captured 12 high-resolution full-page evidence screenshots in `/home/manish.kumar3/.gemini/antigravity/brain/3162d954-0380-4d95-8278-787aef3c6111/finance_qa/`.
+- **Code Review & P1 Fix Regression Verification:** All 5 approved P1 code review issues (`MONEY-P1-01` through `MONEY-P1-05`) fully resolved with dedicated Vitest regression test cases and verified in Chrome QA.
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint` (`eslint . --max-warnings=0`): **PASS** (0 errors, 0 warnings).
+  - `npm run typecheck` (`tsc --noEmit`): **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (13 test files, 117 tests passed, 100% pass rate).
+  - `npm run build` (`npx next build`): **PASS** (Production build and static page generation completed cleanly in Next.js 16.3.5 Turbopack).
+- **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
 
 ## Future entries
 
