@@ -4,6 +4,7 @@ import { WeddingMemberRepository } from "@/modules/weddings/repositories/wedding
 import { EventRepository, UpdateEventParams } from "../repositories/event.repository";
 import { EventDTO, toEventDTO } from "../dto/event.dto";
 import { CreateEventInput, UpdateEventInput } from "../validation/event.schemas";
+import { EntitlementService } from "@/modules/billing/services/entitlement.service";
 
 export class EventService {
   /**
@@ -25,6 +26,9 @@ export class EventService {
       if (!member) {
         return { success: false, error: "Access denied or wedding not found", code: "FORBIDDEN" };
       }
+
+      // Entitlement Guardrail Check
+      await EntitlementService.assertCanCreateEvent(weddingId);
 
       const startAtDate = new Date(payload.startAt);
       const endAtDate = payload.endAt ? new Date(payload.endAt) : undefined;

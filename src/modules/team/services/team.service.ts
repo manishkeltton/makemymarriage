@@ -17,6 +17,7 @@ import {
   toPublicInvitePreviewDTO,
 } from "../dto/team.dto";
 import { CreateInviteInput, UpdateMemberInput } from "../validation/team.schemas";
+import { EntitlementService } from "@/modules/billing/services/entitlement.service";
 
 export class TeamService {
   /**
@@ -104,6 +105,9 @@ export class TeamService {
     if (!admin) {
       return { success: false, error: "Only wedding ADMIN can invite team members", code: "FORBIDDEN" };
     }
+
+    // Entitlement Guardrail Check
+    await EntitlementService.assertCanInviteTeamMember(weddingId);
 
     const normalizedEmail = payload.email.toLowerCase().trim();
 

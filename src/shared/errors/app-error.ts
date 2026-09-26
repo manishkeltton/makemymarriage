@@ -1,4 +1,4 @@
-export type ErrorDetails = { fields: Record<string, string[]> } | null;
+export type ErrorDetails = Record<string, unknown> | null;
 
 // Only pass explicitly public messages/details to this error.
 export class AppError extends Error {

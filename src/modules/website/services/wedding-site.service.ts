@@ -9,6 +9,7 @@ import { WeddingRepository } from "@/modules/weddings/repositories/wedding.repos
 import { EventRepository } from "@/modules/events/repositories/event.repository";
 import { toEventDTO } from "@/modules/events/dto/event.dto";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { EntitlementService } from "@/modules/billing/services/entitlement.service";
 
 function generateDefaultSlug(brideName?: string, groomName?: string, weddingId?: string): string {
   if (brideName && groomName) {
@@ -205,6 +206,11 @@ export class WeddingSiteService {
       if (!initResult.success) {
         return { success: false, error: initResult.error, code: initResult.code };
       }
+    }
+
+    // Validate theme entitlement if selecting theme
+    if (payload.theme) {
+      await EntitlementService.assertCanSelectWebsiteTheme(weddingId, payload.theme);
     }
 
     // Validate slug update if provided

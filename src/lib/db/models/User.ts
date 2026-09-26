@@ -8,6 +8,7 @@ export interface IUser extends Document {
   emailVerifiedAt: Date | null;
   status: "ACTIVE" | "SUSPENDED";
   preferredLanguage: "en" | "hi";
+  isPlatformAdmin?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +52,11 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ["en", "hi"],
       default: "en",
+    },
+    isPlatformAdmin: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {

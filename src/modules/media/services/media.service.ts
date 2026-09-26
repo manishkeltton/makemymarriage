@@ -7,6 +7,7 @@ import { MediaDTO, PublicMediaDTO, toMediaDTO, toPublicMediaDTO } from "../dto/m
 import { UploadIntentInput, GuestUploadIntentInput, CompleteUploadInput } from "../validation/media.validation";
 import { StorageService } from "@/modules/documents/services/storage.service";
 import { AppError } from "@/shared/errors/app-error";
+import { EntitlementService } from "@/modules/billing/services/entitlement.service";
 
 export class MediaService {
   static async createUploadIntent(
@@ -14,6 +15,9 @@ export class MediaService {
     uploader: { type: UploadedByType; userId?: string; householdId?: string },
     input: UploadIntentInput | GuestUploadIntentInput
   ): Promise<{ media: MediaDTO; uploadUrl: string; uploadKey: string }> {
+    // Entitlement Guardrail Check
+    await EntitlementService.assertCanUploadMedia(weddingId, input.sizeBytes, input.mediaType);
+
     const wId = new Types.ObjectId(weddingId);
 
     if (input.albumId) {

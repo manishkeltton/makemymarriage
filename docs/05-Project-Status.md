@@ -19,6 +19,7 @@ This file tracks major implementation milestones. Add new features as work begin
 | Guests — Household, Invitations & RSVP | Completed | 2026-09-26   |
 | Wedding Website & Builder             | Completed | 2026-09-26   |
 | Wedding Experience — Gallery & Wishes  | Completed | 2026-09-26   |
+| SaaS Commercialization & Admin      | Completed | 2026-09-26   |
 | Pending Features & Future Roadmap     | Tracked   | 2026-09-26   |
 
 ## 1. Project scaffold
@@ -204,7 +205,25 @@ This file tracks major implementation milestones. Add new features as work begin
   - `npm run build` (`npx next build`): **PASS** (Production build completed cleanly in Next.js 16.3.5 Turbopack).
 - **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
 
-## 12. Pending Features & Future Roadmap Document
+## 12. SaaS Commercialization — Entitlements, Billing & Platform Admin
+
+- **Status:** Completed
+- **Last updated:** 2026-09-26
+- **Implemented:** Built complete end-to-end SaaS Commercialization module (Milestone 7) for Make My Marriage matching Stitch screens and commercial matrix design specs.
+  - **Plan Matrix & Quotas:** Central plan definitions in `src/modules/billing/config/plans.config.ts` (`FREE` vs `PREMIUM`). Enforces 3 vs 100 Events, 3 vs 50 Team Members, 50 vs 1,000 Guest Households, 50 vs 1,000 Tasks, 500 MB vs 10 GB Storage, Basic vs All Website Themes, and Video Uploads (disabled vs enabled).
+  - **Models & Repositories:** Created `WeddingSubscription` (`wedding_subscriptions`), `BillingEventLog` (`billing_event_logs`), and `SubscriptionAuditLog` (`subscription_audit_logs`) collections. Added `isPlatformAdmin` boolean to `User` model.
+  - **Server-Side Limit Guardrails:** Built `EntitlementService` to dynamically calculate real-time usage metrics and enforce strict quota check before every resource mutation (`createEvent`, `inviteTeamMember`, `createHousehold`, `createTask`, `generateUploadIntent`, and `updateSite` theme setting).
+  - **Billing & Provider Lifecycle:** Built `BillingService` and `SandboxProvider` supporting instant simulated checkout, plan upgrades, cancellations, payment failure handling (7-day grace period to `PAST_DUE`), and HMAC webhook signature verification (`processWebhookEvent`) with strict event log idempotency (`providerEventId`).
+  - **Workspace & Admin UI:** Built workspace Plan & Billing settings page (`/workspace/[weddingId]/settings/billing`), sidebar link, and super-admin management panel (`/admin`). Super-admins (`user.isPlatformAdmin === true`) can search weddings, analyze storage usage, override subscriptions manually with mandatory audit log tracking (`SubscriptionAuditLog`), and inspect platform metrics.
+  - **Documentation:** Created [docs/12-SaaS-Commercialization.md](file:///var/www/html/makemymarriage/docs/12-SaaS-Commercialization.md) tracking plan matrix, billing ownership, webhook security, migration strategy for existing weddings, and safe default auto-provisioning.
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint` (`eslint . --max-warnings=0`): **PASS** (0 errors, 0 warnings).
+  - `npm run typecheck` (`tsc --noEmit`): **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (17 test files, 150 passed, 5 skipped for offline DB, 100% pass rate).
+  - `npm run build` (`npx next build`): **PASS** (Production build completed cleanly in Next.js 16.3.5 Turbopack).
+- **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
+
+## 13. Pending Features & Future Roadmap Document
 
 - **Status:** Documented & Tracked
 - **Last updated:** 2026-09-26

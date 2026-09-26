@@ -11,6 +11,7 @@ import { EventType } from "@/modules/events/models/event.model";
 import { TeamMemberRepository } from "@/modules/team/repositories/team-member.repository";
 import { NotificationService } from "@/modules/notifications/services/notification.service";
 import { DocumentRepository } from "@/modules/documents/repositories/document.repository";
+import { EntitlementService } from "@/modules/billing/services/entitlement.service";
 
 // Predefined Hindu Wedding Checklist Tasks Template
 export const HINDU_WEDDING_CHECKLIST_TEMPLATES = [
@@ -236,6 +237,9 @@ export class TaskService {
     if (!member || member.status !== "ACTIVE") {
       return { success: false, error: "Access denied to wedding workspace", code: "FORBIDDEN" };
     }
+
+    // Entitlement Guardrail Check
+    await EntitlementService.assertCanCreateTask(weddingId);
 
     // 1. Validate eventId belongs to same wedding
     if (payload.eventId) {

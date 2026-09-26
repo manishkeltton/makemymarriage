@@ -7,6 +7,7 @@ import { GuestHouseholdDTO, PublicGuestAccessDTO, GuestStatsSummaryDTO, toGuestH
 import { CreateGuestHouseholdInput, UpdateGuestHouseholdInput, PublicRsvpInput } from "../validation/guest.schemas";
 import { TeamAuthorization } from "@/modules/team/authorization/team.auth";
 import { WeddingRepository } from "@/modules/weddings/repositories/wedding.repository";
+import { EntitlementService } from "@/modules/billing/services/entitlement.service";
 
 function hashToken(rawToken: string): string {
   return crypto.createHash("sha256").update(rawToken).digest("hex");
@@ -120,6 +121,9 @@ export class GuestService {
     if (!allowed) {
       return { success: false, error: "Access denied: requires guest permission", code: "FORBIDDEN" };
     }
+
+    // Entitlement Guardrail Check
+    await EntitlementService.assertCanCreateGuestHousehold(weddingId);
 
     try {
       const wId = new Types.ObjectId(weddingId);

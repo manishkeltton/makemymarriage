@@ -62,6 +62,7 @@ export function WorkspaceSidebar({
 
   const governanceNav = [
     { name: "Team", href: `${navPrefix}/team`, icon: "shield_person", comingSoon: false },
+    { name: "Plan & Billing", href: `${navPrefix}/settings/billing`, icon: "credit_card", comingSoon: false },
     { name: "Settings", href: `${navPrefix}/settings`, icon: "tune", exact: false },
   ];
 
