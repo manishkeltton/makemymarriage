@@ -61,6 +61,12 @@ vi.mock("../modules/tasks/repositories/task.repository", () => ({
   },
 }));
 
+vi.mock("../modules/guests/repositories/guest-household.repository", () => ({
+  GuestHouseholdRepository: {
+    aggregateGuestStats: vi.fn().mockResolvedValue({ totalInvited: 0, totalAttending: 0 }),
+  },
+}));
+
 describe("WeddingService Unit Tests", () => {
   const fakeUserId = "507f1f77bcf86cd799439011";
   const fakeWeddingId = "507f1f77bcf86cd799439012";

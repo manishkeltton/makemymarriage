@@ -47,7 +47,7 @@ export function WorkspaceSidebar({
     { name: "Dashboard", href: navPrefix, icon: "space_dashboard", exact: true },
     { name: "Events", href: `${navPrefix}/events`, icon: "calendar_month", comingSoon: false },
     { name: "Tasks", href: `${navPrefix}/tasks`, icon: "check_circle", comingSoon: false },
-    { name: "Guests", href: `${navPrefix}/guests`, icon: "group", comingSoon: true },
+    { name: "Guests", href: `${navPrefix}/guests`, icon: "group", comingSoon: false },
     { name: "Vendors", href: `${navPrefix}/vendors`, icon: "storefront", comingSoon: false },
     { name: "Expenses", href: `${navPrefix}/expenses`, icon: "payments", comingSoon: false },
     { name: "Documents", href: `${navPrefix}/documents`, icon: "description", comingSoon: false },

@@ -16,6 +16,7 @@ This file tracks major implementation milestones. Add new features as work begin
 | Team Management — Invites, Roles & Scope| Completed | 2026-09-25   |
 | Planning Engine — Tasks & Documents   | Completed | 2026-09-25   |
 | Money & Vendors — Budget & Procurement | Completed | 2026-09-25   |
+| Guests — Household, Invitations & RSVP | Completed | 2026-09-26   |
 
 ## 1. Project scaffold
 
@@ -125,6 +126,32 @@ This file tracks major implementation milestones. Add new features as work begin
   - `npm run build` (`npx next build`): **PASS** (Production build and static page generation completed cleanly in Next.js 16.3.5 Turbopack).
 - **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
 
+## 9. Guests — Household Management, Invitations & RSVP
+
+- **Status:** Completed
+- **Last updated:** 2026-09-26
+- **Implemented:** Built complete end-to-end Guest Management, Secure Access Token Link Lifecycle, Public Digital Invitation Page, Public & Organiser RSVP Workflows, and Dashboard Integration for Make My Marriage (Milestone 4).
+  - **Models & Validation:** `GuestHouseholdModel` (`guest_households` collection) with `side`, `members`, `totalInvited`, `invitationStatus`, and embedded `rsvp` status/attending count. `GuestAccessTokenModel` (`guest_access_tokens` collection) storing SHA-256 token hashes with unique indexing. Zod schemas (`createGuestHouseholdSchema`, `updateGuestHouseholdSchema`, `publicRsvpSchema`).
+  - **Repositories & Services:** `GuestHouseholdRepository`, `GuestAccessTokenRepository`, `GuestService` implementing CRUD, filtering, cursor pagination, cryptographically secure token generation (`crypto.randomBytes(32).toString('hex')`), hash-only persistence, access link rotation/reissuance, `markInvitationSent`, public invitation lookup with DTO allowlist & `Cache-Control: no-store, private`, and public/organiser RSVP submission.
+  - **REST APIs:** `/api/v1/weddings/[weddingId]/guests`, `/api/v1/weddings/[weddingId]/guests/[householdId]`, `/access-link`, `/mark-invitation-sent`, `/api/v1/public/guest-access/[token]`, and `/api/v1/public/guest-access/[token]/rsvp`.
+  - **Workspace UI & Public Experience:** Guests directory view (`/workspace/[weddingId]/guests`) with KPI cards & filter chips, `GuestHouseholdFormModal`, `GuestAccessLinkModal` (Copy Link & QR Code display), `GuestDetailDrawer`, updated sidebar navigation, and Public Branded Invitation Page (`/invitation/[token]`).
+  - **Dashboard Integration:** Updated `WeddingService.getDashboardSummary` to aggregate real guest attendance metrics (`totalGuests`, `attendingGuests`).
+  - **Testing & Verification:** Added 12 unit & integration tests in `src/__tests__/guests.test.ts`. Complete Vitest test suite passing (129 tests across 14 test files). Verified clean TypeScript compilation (`tsc --noEmit`), strict zero-warning ESLint (`npm run lint`), and Next.js production build (`npm run build`).
+- **Key files:** `src/modules/guests/`, `src/app/api/v1/weddings/[weddingId]/guests/`, `src/app/api/v1/public/guest-access/`, `src/components/guests/`, `src/app/(workspace)/workspace/[weddingId]/guests/`, `src/app/invitation/[token]/`, `src/__tests__/guests.test.ts`, `docs/08-Guests-And-RSVP.md`.
+- **Scope:** Covers guest household CRUD, embedded members, side attribution, secure token access links, QR code sharing, mark invitation sent, minimal public invitation page, public & organiser RSVP response, and dashboard metrics. Excludes guest user accounts, event-specific invitations/RSVP, direct WhatsApp API messaging, website builder, and gallery implementation.
+
+### Final Readiness Check — 2026-09-26
+
+- **Acceptance Matrix Verification:** Verified all 22 requirement areas across Household CRUD, Embedded Members, Guest Search & Filters, Security Token Lifecycle, Hash-only DB Storage, Public Invitation Access, Household RSVP Authorization, Dashboard Summaries, Tenant Isolation, and V1 Boundaries.
+- **Chrome Manual QA Evidence:** Executed 22 end-to-end user journey test cases in Chrome browser (`http://localhost:3000`) via Puppeteer. Results: **22 PASS, 0 FAIL, 0 BLOCKED**. Captured 7 high-resolution full-page evidence screenshots in `guests_qa/`.
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint` (`eslint . --max-warnings=0`): **PASS** (0 errors, 0 warnings).
+  - `npm run typecheck` (`tsc --noEmit`): **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (14 test files, 132 tests passed, 100% pass rate).
+  - `npm run build` (`npx next build`): **PASS** (Production build and static page generation completed cleanly in Next.js 16.3.5 Turbopack).
+- **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
+
 ## Future entries
 
 For each major feature, add a numbered entry with its name, status (`In progress`, `Blocked`, or `Completed`), last updated date, implemented scope, key files where useful, and remaining work or known limitations. Keep the overview and document's last updated date in sync with the entries.
+

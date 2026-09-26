@@ -1,10 +1,10 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
 
 async function startLocalMongo() {
-  console.log("Starting in-memory MongoDB instance...");
+  console.log("Starting in-memory MongoDB instance on port 41789...");
   const mongoServer = await MongoMemoryServer.create({
     instance: {
-      port: 27017,
+      port: 41789,
       dbName: "MakeMyMarriageDB",
     },
   });

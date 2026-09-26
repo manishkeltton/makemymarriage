@@ -10,6 +10,7 @@ import { EventRepository } from "@/modules/events/repositories/event.repository"
 import { toEventDTO, EventDTO } from "@/modules/events/dto/event.dto";
 import { ExpenseRepository } from "@/modules/expenses/repositories/expense.repository";
 import { ExpensePaymentRepository } from "@/modules/expenses/repositories/expense-payment.repository";
+import { GuestHouseholdRepository } from "@/modules/guests/repositories/guest-household.repository";
 
 export interface CreateWeddingDTO {
   title: string;
@@ -327,6 +328,8 @@ export class WeddingService {
       totalOutstandingPaise += Math.max(0, e.totalAmountPaise - paidForExp);
     }
 
+    const guestStats = await GuestHouseholdRepository.aggregateGuestStats(weddingId);
+
     return {
       success: true,
       data: {
@@ -350,8 +353,8 @@ export class WeddingService {
           pendingTasks: taskMetrics.inProgressTasks + taskMetrics.todoTasks,
           overdueTasks: taskMetrics.overdueTasks,
           taskProgress,
-          totalGuests: 0,
-          attendingGuests: 0,
+          totalGuests: guestStats.totalInvited,
+          attendingGuests: guestStats.totalAttending,
           totalTeamMembers,
           totalBudgetPaise,
           totalPaidPaise,
