@@ -17,6 +17,7 @@ This file tracks major implementation milestones. Add new features as work begin
 | Planning Engine — Tasks & Documents   | Completed | 2026-09-25   |
 | Money & Vendors — Budget & Procurement | Completed | 2026-09-25   |
 | Guests — Household, Invitations & RSVP | Completed | 2026-09-26   |
+| Wedding Website & Builder             | Completed | 2026-09-26   |
 
 ## 1. Project scaffold
 
@@ -148,6 +149,34 @@ This file tracks major implementation milestones. Add new features as work begin
   - `npm run lint` (`eslint . --max-warnings=0`): **PASS** (0 errors, 0 warnings).
   - `npm run typecheck` (`tsc --noEmit`): **PASS** (0 errors).
   - `npx vitest run`: **PASS** (14 test files, 132 tests passed, 100% pass rate).
+  - `npm run build` (`npx next build`): **PASS** (Production build and static page generation completed cleanly in Next.js 16.3.5 Turbopack).
+- **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
+
+## 10. Wedding Website & Builder
+
+- **Status:** Completed
+- **Last updated:** 2026-09-26
+- **Implemented:** Built complete end-to-end Wedding Website & Builder module for Make My Marriage (Milestone 5).
+  - **Models & Validation:** `WeddingSiteModel` (`wedding_sites` collection) with `UNIQUE(weddingId)` and `UNIQUE(slug)` indexes. Supported themes (`ROYAL_GOLD`, `FLORAL_PASTEL`, `MIDNIGHT_ROMANCE`, `VINTAGE_SEPIA`, `MINIMAL_ELEGANCE`). Zod schemas (`updateSiteSchema`, `sectionSchema`, `isReservedSlug`).
+  - **Repositories & Services:** `WeddingSiteRepository` and `WeddingSiteService` implementing site CRUD, slug conflict resolution, reserved slug validation, section reordering/visibility, theme and style controls, authorized live preview, publishing lifecycle (`DRAFT` vs `PUBLISHED`), and public website lookup with dynamic event integration and CDN cache control (`Cache-Control: public, s-maxage=60, stale-while-revalidate=300`).
+  - **REST APIs:** `/api/v1/weddings/[weddingId]/site`, `/publish`, `/unpublish`, `/preview`, and `/api/v1/public/weddings/[slug]`.
+  - **Workspace UI & Modals:** Website Builder workspace page (`/workspace/[weddingId]/website`), `ThemeSelector.tsx`, `SiteSettingsModal.tsx`, `SectionEditorModal.tsx`, `LivePreviewModal.tsx`, and updated workspace sidebar navigation.
+  - **Public Rendering Page:** Dynamic public rendering page at `/w/[slug]` with Next.js `generateMetadata` SEO title tags, meta descriptions, search engine `noindex` rules, theme typography, hero cover images, ceremony schedule, venue directions, and dress code.
+  - **Security & Data Isolation:** Public responses use explicit `PublicWeddingSiteDTO` allowlists excluding internal notes, household details, invitation tokens, finances, private documents, and unpublished draft content. Household RSVP remains strictly behind secure digital invitation links (`/invitation/[token]`).
+  - **Testing & Verification:** Added 10 unit & integration tests in `src/__tests__/wedding-site.test.ts`. Full Vitest test suite passing (142 tests across 15 test files). Verified clean TypeScript compilation (`tsc --noEmit`), strict zero-warning ESLint (`npm run lint`), and Next.js production build (`npm run build`).
+- **Key files:** `src/modules/website/`, `src/app/api/v1/weddings/[weddingId]/site/`, `src/app/api/v1/public/weddings/[slug]/`, `src/components/website/`, `src/app/(workspace)/workspace/[weddingId]/website/`, `src/app/w/[slug]/`, `src/__tests__/wedding-site.test.ts`, `docs/09-Wedding-Website.md`.
+- **Scope:** Covers website settings, URL handling, structured section schemas, theme/style controls, cover image selection, section ordering and visibility, ceremony schedule integration, authorized preview, publish/unpublish lifecycle, public rendering, SEO metadata, and CDN cache headers. Excludes arbitrary HTML/CSS editing, custom domains, gallery management, guestbook, livestream, and redesigning household RSVP.
+
+### Final Readiness Check & Senior Code Review P1 Fixes — 2026-09-26
+
+- **Acceptance Matrix Verification:** Verified all 22 requirement areas across Website Setup, Unique Public Slug Validation, Theme & Style Controls, Structured Section Editing, Image Selection, Section Ordering & Visibility, Event/Venue Presentation, Authorized Preview, Publishing Lifecycle, Cache Invalidation (`revalidateTag` & `revalidatePath`), Unpublished Site Protection (404 / SITE_UNPUBLISHED), Public Data Privacy, Tenant Isolation, Household RSVP Security, Responsive Layouts, and V1 Scope Exclusions.
+- **Chrome Manual QA Evidence:** Executed 22 end-to-end browser QA scenarios via Puppeteer runner (`scripts/qa-website-runner.js`). Results: **22 PASS, 0 FAIL, 0 BLOCKED (100% Pass Rate)**. Captured 6 high-resolution full-page evidence screenshots in `website_qa/`.
+- **Senior Code Review P1 Fixes (2026-09-26):**
+  - Resolved `WEB-P1-01`: Implemented Next.js cache revalidation (`revalidateTag` & `revalidatePath`) in `WeddingSiteService.invalidateSiteCache` called automatically during `publishSite`, `unpublishSite`, and `updateSite` (when slug or site settings change). Invalidates public site tags (`wedding-site-${slug}`), rendering route `/w/${slug}`, and public DTO API route `/api/v1/public/weddings/${slug}`. Ensures unpublished sites or updated custom slugs are purged from edge CDN caches instantly. Regression verified with dedicated Vitest assertions.
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint` (`eslint . --max-warnings=0`): **PASS** (0 errors, 0 warnings).
+  - `npm run typecheck` (`tsc --noEmit`): **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (15 test files, 141 tests passed, 100% pass rate).
   - `npm run build` (`npx next build`): **PASS** (Production build and static page generation completed cleanly in Next.js 16.3.5 Turbopack).
 - **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
 
