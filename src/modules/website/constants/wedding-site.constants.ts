@@ -23,6 +23,9 @@ export const SECTION_TYPES = [
   "RSVP_CTA",
   "TIMELINE",
   "GALLERY_TEASER",
+  "LIVESTREAM",
+  "GUESTBOOK",
+  "EMERGENCY",
   "CUSTOM",
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];

@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { WeddingSiteService } from "@/modules/website/services/wedding-site.service";
 import { PublicWeddingSiteDTO } from "@/modules/website/dto/wedding-site.dto";
+import { buildYouTubeEmbedUrl } from "@/modules/website/utils/livestream";
 
 interface PublicWebsitePageProps {
   params: Promise<{ slug: string }>;
@@ -187,6 +188,35 @@ export default async function PublicWebsitePage({ params }: PublicWebsitePagePro
                   )}
                 </div>
               )}
+
+              {sec.type === "LIVESTREAM" && (() => {
+                const embedUrl = buildYouTubeEmbedUrl(sec.config.youtubeUrl as string || sec.config.youtubeVideoId as string);
+                return (
+                  <div className="space-y-6">
+                    <h2 className="text-3xl font-bold font-serif text-amber-400">
+                      {String(sec.config.title || "Live Stream")}
+                    </h2>
+                    <p className="text-sm text-stone-300 font-sans max-w-xl mx-auto">
+                      {String(sec.config.description || "Watch our wedding ceremonies live from anywhere in the world.")}
+                    </p>
+                    {embedUrl ? (
+                      <div className="w-full aspect-video rounded-2xl overflow-hidden border border-stone-800 shadow-2xl bg-stone-900 mt-4">
+                        <iframe
+                          src={embedUrl}
+                          title="YouTube Wedding Livestream"
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-8 rounded-2xl bg-stone-900 border border-stone-800 text-stone-400 font-sans text-sm italic">
+                        Livestream link not configured yet. Check back closer to the ceremony!
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {sec.type === "VENUE" && (
                 <div className="space-y-6">

@@ -55,9 +55,9 @@ export function WorkspaceSidebar({
 
   const guestExperienceNav = [
     { name: "Wedding Website", href: `${navPrefix}/website`, icon: "language", comingSoon: false },
-    { name: "Gallery", href: `${navPrefix}/gallery`, icon: "photo_library", comingSoon: true },
-    { name: "Guestbook", href: `${navPrefix}/guestbook`, icon: "edit_note", comingSoon: true },
-    { name: "Emergency", href: `${navPrefix}/emergency`, icon: "emergency", comingSoon: true },
+    { name: "Gallery", href: `${navPrefix}/gallery`, icon: "photo_library", comingSoon: false },
+    { name: "Guestbook", href: `${navPrefix}/guestbook`, icon: "edit_note", comingSoon: false },
+    { name: "Emergency", href: `${navPrefix}/emergency`, icon: "emergency", comingSoon: false },
   ];
 
   const governanceNav = [

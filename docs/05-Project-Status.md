@@ -1,6 +1,6 @@
 # Make My Marriage — Project Status
 
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 
 This file tracks major implementation milestones. Add new features as work begins and update existing entries as they progress. Dates below indicate when progress was recorded, not necessarily when a feature was originally completed.
 
@@ -18,6 +18,8 @@ This file tracks major implementation milestones. Add new features as work begin
 | Money & Vendors — Budget & Procurement | Completed | 2026-09-25   |
 | Guests — Household, Invitations & RSVP | Completed | 2026-09-26   |
 | Wedding Website & Builder             | Completed | 2026-09-26   |
+| Wedding Experience — Gallery & Wishes  | Completed | 2026-09-26   |
+| Pending Features & Future Roadmap     | Tracked   | 2026-09-26   |
 
 ## 1. Project scaffold
 
@@ -180,7 +182,36 @@ This file tracks major implementation milestones. Add new features as work begin
   - `npm run build` (`npx next build`): **PASS** (Production build and static page generation completed cleanly in Next.js 16.3.5 Turbopack).
 - **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
 
+## 11. Wedding Experience — Gallery, Guestbook, Livestream & Emergency Contacts
+
+- **Status:** Completed
+- **Last updated:** 2026-09-26
+- **Implemented:** Built complete end-to-end Wedding Experience module (Milestone 6) for Make My Marriage matching Stitch screens and system/database design docs.
+  - **Models & Validation:** `MediaModel` (`media_vault` collection), `AlbumModel` (`media_albums` collection), `GuestbookEntryModel` (`guestbook_wishes` collection), `EmergencyContactModel` (`emergency_contacts` collection), and `EmergencyIssueModel` (`emergency_issues` collection). Zod validation schemas (`createAlbumSchema`, `uploadIntentSchema`, `completeUploadSchema`, `moderateMediaSchema`, `submitWishSchema`, `moderateWishSchema`, `createEmergencyContactSchema`).
+  - **Cloudflare R2 Direct Uploads:** Implemented presigned upload intent generation, direct R2 binary uploads, upload key verification, object key sealing, and signed temporary access URLs.
+  - **Guest Access Integration:** Guests access media upload intent, gallery viewing, wish submission, and emergency contacts directly using their existing secure digital invitation token (`/invitation/[token]`).
+  - **Moderation Workflow:** Implemented organiser moderation queue (`PENDING_APPROVAL`, `APPROVED`, `REJECTED`) for both guest photo/video submissions and guestbook wishes.
+  - **YouTube Livestream & Website Integration:** Implemented safe YouTube URL parsing (`extractYouTubeVideoId`) supporting 11-character video IDs, standard watch URLs, short youtu.be links, embed links, and live channel links. Renders safe HTTPS iframe embeds on published wedding websites (`/w/[slug]`).
+  - **Emergency Contacts:** Organiser directory (`/workspace/[weddingId]/emergency`) for ceremony leads, priests, transport leads, and venue contacts with priority badges. Public guest DTOs strictly omit private internal organiser notes (`notes`).
+  - **Workspace & Public UI Pages:** Built Gallery page (`/workspace/[weddingId]/gallery`), Guestbook page (`/workspace/[weddingId]/guestbook`), Emergency page (`/workspace/[weddingId]/emergency`), updated workspace sidebar navigation, upgraded Public Digital Invitation (`/invitation/[token]`), and updated Public Website (`/w/[slug]`).
+- **Senior Code Review P1 Security Fixes (2026-09-26):**
+  - Resolved `EXP-P1-01`: Restricted `visibility: "PRIVATE"` media access in `MediaService.getMediaAccessUrl` when invoked with `allowPrivate: false` from public guest access token endpoints. Guests querying `mediaId` directly receive HTTP 403 Forbidden.
+  - Resolved `EXP-P1-02`: Enforced `input.uploadKey.startsWith("uploads/temp/" + weddingId + "/")` in `MediaService.completeUpload` to prevent cross-wedding upload key substitution.
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint` (`eslint . --max-warnings=0`): **PASS** (0 errors, 0 warnings).
+  - `npm run typecheck` (`tsc --noEmit`): **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (16 test files, 143 tests passed, 100% pass rate).
+  - `npm run build` (`npx next build`): **PASS** (Production build completed cleanly in Next.js 16.3.5 Turbopack).
+- **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
+
+## 12. Pending Features & Future Roadmap Document
+
+- **Status:** Documented & Tracked
+- **Last updated:** 2026-09-26
+- **Documentation:** Created [docs/11-Pending-Features-And-Roadmap.md](file:///var/www/html/makemymarriage/docs/11-Pending-Features-And-Roadmap.md) as a central living repository for all deferred capabilities, external service credential requirements (Resend email API, Cloudflare R2 object storage), V1 scope boundaries, and planned future release enhancements across all product modules.
+
 ## Future entries
 
 For each major feature, add a numbered entry with its name, status (`In progress`, `Blocked`, or `Completed`), last updated date, implemented scope, key files where useful, and remaining work or known limitations. Keep the overview and document's last updated date in sync with the entries.
+
 

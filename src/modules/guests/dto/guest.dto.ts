@@ -48,6 +48,7 @@ export interface PublicGuestAccessDTO {
     attendingCount: number;
     respondedAt?: string;
   };
+  galleryAccess: boolean;
   wedding: {
     title: string;
     primaryWeddingDate?: string;
@@ -131,6 +132,7 @@ export function toPublicGuestAccessDTO(
       attendingCount: householdDoc.rsvp.attendingCount ?? (householdDoc.rsvp.status === "ATTENDING" ? householdDoc.totalInvited : 0),
       respondedAt: householdDoc.rsvp.respondedAt ? householdDoc.rsvp.respondedAt.toISOString() : undefined,
     },
+    galleryAccess: Boolean(householdDoc.galleryAccess),
     wedding: {
       title: weddingMeta.title,
       primaryWeddingDate: weddingMeta.primaryWeddingDate ? weddingMeta.primaryWeddingDate.toISOString() : undefined,
