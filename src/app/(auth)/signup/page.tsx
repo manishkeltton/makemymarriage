@@ -13,13 +13,12 @@ function SignupForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: emailParam,
     password: "",
   });
-
-
 
   const getSafeReturnUrl = (url: string) => {
     if (url && url.startsWith("/") && !url.startsWith("//")) {
@@ -72,91 +71,154 @@ function SignupForm() {
   const loginLink = `/login${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
   return (
-    <div>
-      <h2 className="font-headline-lg text-[28px] text-on-surface font-bold tracking-tight mb-2">Create your account</h2>
-      <p className="font-body-md text-on-surface-variant mb-8">
-        Already have an account?{" "}
-        <Link href={loginLink} className="text-primary-container font-semibold hover:underline">
-          Sign in
-        </Link>
-      </p>
+    <div className="w-full flex flex-col items-center">
+      {/* Header Eyebrow & Title */}
+      <div className="flex flex-col items-center text-center mb-6 sm:mb-8">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm font-label-md uppercase tracking-wider mb-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+          CREATE WEDDING WORKSPACE
+        </div>
+        <h1 className="font-headline-lg text-headline-lg text-on-surface font-semibold tracking-tight">
+          Start planning your wedding free
+        </h1>
+        <p className="font-body-sm text-body-sm text-on-surface-variant mt-2 max-w-xs leading-relaxed">
+          Create your private workspace to manage events, tasks, vendors, and guests together.
+        </p>
+      </div>
 
-      {error && (
-        <div className="bg-error-container text-on-error-container p-4 rounded-lg mb-6 font-body-sm space-y-2">
-          <p>{error}</p>
-          {showLoginPrompt && (
-            <div className="pt-2.5 border-t border-on-error-container/20">
-              <p className="font-semibold text-xs text-on-error-container">Account already exists with this email</p>
-              <Link
-                href={`/login?returnUrl=${encodeURIComponent(returnUrlParam)}&email=${encodeURIComponent(formData.email)}`}
-                className="inline-block mt-1.5 px-3 py-1.5 bg-primary-container text-on-primary font-bold text-xs rounded hover:bg-primary transition-colors shadow-xs"
-              >
-                Sign In with {formData.email}
-              </Link>
+      {/* Main Auth Card */}
+      <div className="w-full bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xl shadow-on-surface/[0.03] p-6 sm:p-8">
+        {error && (
+          <div className="mb-5 p-3 rounded-xl bg-error-container text-on-error-container text-body-sm font-body-sm flex items-start gap-2.5">
+            <span className="material-symbols-outlined text-[18px] text-error shrink-0 mt-0.5">error</span>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-label-md">Signup failed</p>
+              <p className="text-body-sm text-on-error-container/90">{error}</p>
+              {showLoginPrompt && (
+                <div className="mt-2.5 pt-2 border-t border-on-error-container/20">
+                  <p className="font-semibold text-xs text-on-error-container">Account already exists with this email</p>
+                  <Link
+                    href={`/login?returnUrl=${encodeURIComponent(returnUrlParam)}&email=${encodeURIComponent(formData.email)}`}
+                    className="inline-block mt-1.5 px-3 py-1.5 bg-primary-container text-on-primary font-bold text-xs rounded-lg hover:bg-primary transition-colors shadow-xs"
+                  >
+                    Sign In with {formData.email}
+                  </Link>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+          {/* Full Name */}
+          <div className="space-y-1.5">
+            <label className="block font-label-md text-label-md text-on-surface" htmlFor="name">
+              Your Full Name
+            </label>
+            <input
+              id="name"
+              type="text"
+              name="name"
+              required
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Aarav Sharma"
+              className="w-full h-11 px-3.5 rounded-xl bg-surface-container-lowest border border-outline-variant/60 text-on-surface font-body-md text-body-md placeholder:text-outline/70 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all shadow-xs"
+            />
+          </div>
+
+          {/* Email */}
+          <div className="space-y-1.5">
+            <label className="block font-label-md text-label-md text-on-surface" htmlFor="email">
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              name="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="name@domain.com"
+              className="w-full h-11 px-3.5 rounded-xl bg-surface-container-lowest border border-outline-variant/60 text-on-surface font-body-md text-body-md placeholder:text-outline/70 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all shadow-xs"
+            />
+          </div>
+
+          {/* Password */}
+          <div className="space-y-1.5">
+            <label className="block font-label-md text-label-md text-on-surface" htmlFor="password">
+              Password (min 8 characters)
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                required
+                minLength={8}
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••••••"
+                className="w-full h-11 pl-3.5 pr-11 rounded-xl bg-surface-container-lowest border border-outline-variant/60 text-on-surface font-body-md text-body-md placeholder:text-outline/70 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all shadow-xs"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label="Toggle password visibility"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors focus:outline-none"
+              >
+                <span className="material-symbols-outlined text-[19px]">
+                  {showPassword ? "visibility_off" : "visibility"}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="relative w-full h-11 bg-primary-container text-on-primary font-label-md text-label-md rounded-xl hover:bg-primary active:scale-[0.99] transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4 text-on-primary" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor"></path>
+                  </svg>
+                  Creating Account...
+                </span>
+              ) : (
+                "Create Account & Continue"
+              )}
+            </button>
+          </div>
+        </form>
+
+        {/* Footer Link */}
+        <div className="mt-6 pt-5 bg-surface-container-low/40 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 px-6 sm:px-8 py-4 rounded-b-2xl flex items-center justify-center text-center border-t border-outline-variant/30">
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
+            Already have an account?{" "}
+            <Link
+              href={loginLink}
+              className="font-semibold text-primary-container hover:text-primary transition-colors ml-1 inline-flex items-center gap-0.5"
+            >
+              Sign in
+              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </Link>
+          </p>
         </div>
-      )}
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
-          <label className="block font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant mb-2">
-            Your Full Name
-          </label>
-          <input
-            type="text"
-            name="name"
-            required
-            value={formData.name}
-            onChange={handleChange}
-            className="w-full px-4 py-3 bg-surface-container-low border border-surface-variant/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-container text-on-surface"
-            placeholder="Aarav Sharma"
-          />
-        </div>
-
-        <div>
-          <label className="block font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant mb-2">
-            Email Address
-          </label>
-          <input
-            type="email"
-            name="email"
-            required
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full px-4 py-3 bg-surface-container-low border border-surface-variant/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-container text-on-surface"
-            placeholder="aarav@example.com"
-          />
-        </div>
-
-        <div>
-          <label className="block font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant mb-2">
-            Password
-          </label>
-          <input
-            type="password"
-            name="password"
-            required
-            minLength={8}
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full px-4 py-3 bg-surface-container-low border border-surface-variant/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-container text-on-surface"
-            placeholder="••••••••"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full mt-4 bg-primary-container hover:bg-[#5D1F2C] text-on-primary py-3.5 rounded-lg font-headline-sm text-body-lg transition-colors shadow-sm disabled:opacity-50"
-        >
-          {loading ? "Creating account..." : "Create Account"}
-        </button>
-      </form>
-
-      <p className="mt-6 text-center font-body-sm text-on-surface-variant">
-        By creating an account, you agree to our <Link href="/terms" className="underline">Terms of Service</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.
-      </p>
+      {/* Security Footer Metadata */}
+      <div className="mt-6 flex items-center justify-center gap-3 text-label-sm font-label-sm text-on-surface-variant/70">
+        <span className="flex items-center gap-1">
+          <span className="material-symbols-outlined text-[14px]">shield</span> 256-Bit SSL Encrypted
+        </span>
+        <span>•</span>
+        <span>Isolated Workspace Storage</span>
+      </div>
     </div>
   );
 }

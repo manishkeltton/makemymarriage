@@ -627,6 +627,95 @@ export default function WorkspaceTasksPage({
         </div>
       )}
 
+      {/* Bottom Information Cards (Vedic Guidelines, Task Coverage, Storage Breakdown) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+        {/* Card 1: Vedic Ritual Protocol Guidelines */}
+        <div className="bg-[#762B3A] text-white p-5 rounded-2xl shadow-sm space-y-3 flex flex-col justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-full text-white/90">
+                Vedic Protocol Guidelines
+              </span>
+              <span className="text-[10px] text-white/70">Vedic Specs Synchronized</span>
+            </div>
+            <h3 className="text-base font-bold text-white pt-1">Vedic Ritual Protocol Guidelines</h3>
+            <p className="text-xs text-white/80 leading-relaxed">
+              Vedic ritual protocols for Hindu weddings are predefined and categorized according to ritual phase.
+            </p>
+          </div>
+          <div className="space-y-2 pt-2 border-t border-white/10">
+            <div className="flex justify-between text-xs text-white/90 font-medium">
+              <span>04/27/24 – 04/30/24</span>
+              <span className="font-bold text-amber-200">100% Sourced</span>
+            </div>
+            <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-amber-300 h-full rounded-full w-full" />
+            </div>
+            <button
+              onClick={() => setIsChecklistModalOpen(true)}
+              className="w-full mt-2 py-2 px-3 rounded-xl bg-white text-[#762B3A] font-bold text-xs hover:bg-amber-50 transition-colors shadow-xs cursor-pointer"
+            >
+              Run Ceremonial Checklist Wizard
+            </button>
+          </div>
+        </div>
+
+        {/* Card 2: Task Coverage Matrix */}
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container-high/60 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold">
+                Task Coverage Matrix
+              </span>
+              <span className="material-symbols-outlined text-primary-container text-[20px]">grid_view</span>
+            </div>
+            <h3 className="text-sm font-bold text-on-surface">Ceremony Allocation & Vendor Mapping</h3>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Direct allocation of vendor tasks and milestones to specific ceremonies ensures zero gaps during live execution.
+            </p>
+          </div>
+          <div className="pt-2 border-t border-surface-container-high/60">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="text-on-surface-variant">Active Ceremony Maps</span>
+              <span className="font-bold text-secondary">{events.length} Ceremonies</span>
+            </div>
+            <button
+              onClick={() => setIsChecklistModalOpen(true)}
+              className="w-full py-2 px-3 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-semibold text-xs transition-colors cursor-pointer"
+            >
+              Initialize Unassigned Tasks Wizard
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Quick Storage Breakdown */}
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container-high/60 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold">
+                Quick Storage Breakdown
+              </span>
+              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">cloud</span>
+            </div>
+            <h3 className="text-sm font-bold text-on-surface">Documents &amp; Media Storage</h3>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Storage footprint categorized across contract documents and guest upload media.
+            </p>
+          </div>
+          <div className="space-y-2 pt-2 border-t border-surface-container-high/60">
+            <div className="flex justify-between text-[11px] text-on-surface-variant">
+              <span>Venue &amp; Logistics (55.4%)</span>
+              <span>High-Res Art (32.8%)</span>
+            </div>
+            <div className="w-full bg-surface-container-high h-2 rounded-full flex overflow-hidden">
+              <div className="bg-primary-container h-full w-[55%]" />
+              <div className="bg-secondary h-full w-[33%]" />
+              <div className="bg-tertiary h-full w-[12%]" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Task Form Modal */}
       <TaskFormModal
         weddingId={weddingId}

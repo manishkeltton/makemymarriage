@@ -28,35 +28,33 @@ export default async function WorkspaceDashboardPage({
 
   if (!dashboardResult.success || !dashboardResult.data) {
     return (
-      <WorkspaceShell weddingId={weddingId} user={session.user}>
-        <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/60 max-w-md mx-auto text-center space-y-4 shadow-sm my-12">
-          <div className="w-12 h-12 rounded-full bg-error-container text-on-error-container flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-[24px]">error</span>
-          </div>
-          <h2 className="text-lg font-headline-md font-bold text-on-surface">Workspace Access Error</h2>
-          <p className="text-on-surface-variant text-sm">
-            {dashboardResult.error || "Wedding workspace not found or membership access denied."}
-          </p>
-          <div className="pt-2 flex flex-col gap-2">
-            <Link
-              href="/workspace/new"
-              className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary font-semibold text-xs text-center shadow-xs hover:bg-primary transition-colors"
-            >
-              Create New Wedding
-            </Link>
-            <Link
-              href="/workspace"
-              className="w-full py-2.5 rounded-lg border border-surface-container-high text-on-surface font-semibold text-xs text-center hover:bg-surface-container-low transition-colors"
-            >
-              Return to Workspaces
-            </Link>
-          </div>
+      <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/60 max-w-md mx-auto text-center space-y-4 shadow-sm my-12">
+        <div className="w-12 h-12 rounded-full bg-error-container text-on-error-container flex items-center justify-center mx-auto">
+          <span className="material-symbols-outlined text-[24px]">error</span>
         </div>
-      </WorkspaceShell>
+        <h2 className="text-lg font-headline-md font-bold text-on-surface">Workspace Access Error</h2>
+        <p className="text-on-surface-variant text-sm">
+          {dashboardResult.error || "Wedding workspace not found or membership access denied."}
+        </p>
+        <div className="pt-2 flex flex-col gap-2">
+          <Link
+            href="/workspace/new"
+            className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary font-semibold text-xs text-center shadow-xs hover:bg-primary transition-colors"
+          >
+            Create New Wedding
+          </Link>
+          <Link
+            href="/workspace"
+            className="w-full py-2.5 rounded-lg border border-surface-container-high text-on-surface font-semibold text-xs text-center hover:bg-surface-container-low transition-colors"
+          >
+            Return to Workspaces
+          </Link>
+        </div>
+      </div>
     );
   }
 
-  const { wedding, userRole, stats } = dashboardResult.data;
+  const { wedding, stats } = dashboardResult.data;
 
   const formattedDate = new Date(wedding.primaryWeddingDate).toLocaleDateString("en-IN", {
     day: "numeric",
@@ -67,8 +65,7 @@ export default async function WorkspaceDashboardPage({
   const isEmptyDashboard = stats.totalEvents === 0;
 
   return (
-    <WorkspaceShell weddingId={weddingId} user={session.user} role={userRole}>
-      <div className="flex flex-col w-full pb-16 space-y-8">
+    <div className="flex flex-col w-full pb-16 space-y-8">
         {/* Top Hero Banner */}
         <section className="relative overflow-hidden rounded-xl bg-surface-container-low p-6 sm:p-8 lg:p-10 shadow-sm border border-surface-container-high/60">
           <div className="absolute -right-16 -top-16 w-96 h-96 rounded-full bg-primary-fixed/20 blur-3xl pointer-events-none" />
@@ -486,6 +483,5 @@ export default async function WorkspaceDashboardPage({
           </div>
         </section>
       </div>
-    </WorkspaceShell>
   );
 }
