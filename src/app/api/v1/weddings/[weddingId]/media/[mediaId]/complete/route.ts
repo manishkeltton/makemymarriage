@@ -55,7 +55,10 @@ export async function POST(
       );
     }
 
-    const media = await MediaService.completeUpload(weddingId, mediaId, parseResult.data);
+    const media = await MediaService.completeUpload(weddingId, mediaId, parseResult.data, {
+      type: "MEMBER",
+      userId: session.user.id,
+    });
     return NextResponse.json({ success: true, data: media }, { status: 200 });
   } catch (err: unknown) {
     if (err instanceof AppError) {

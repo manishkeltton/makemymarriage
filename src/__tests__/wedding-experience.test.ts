@@ -13,7 +13,12 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("@/modules/documents/services/storage.service", () => ({
   StorageService: {
-    uploadUrl: vi.fn().mockResolvedValue("https://r2.storage.example.com/upload-intent-url"),
+    objectKey: vi.fn((key: string) => `cloudinary:test:${key}`),
+    uploadUrl: vi.fn().mockResolvedValue({
+      uploadUrl: "https://api.cloudinary.com/v1_1/test/image/upload",
+      uploadMethod: "POST",
+      uploadFields: { signature: "test-signature" },
+    }),
     verifyAndSeal: vi.fn().mockResolvedValue(true),
     accessUrl: vi.fn().mockResolvedValue("https://r2.storage.example.com/signed-access-url"),
     remove: vi.fn().mockResolvedValue(true),
@@ -248,6 +253,7 @@ describe("Wedding Experience — P1 Security Regression Suite", () => {
       objectKey: "weddings/64b8f0000000000000000002/media/photo.jpg",
       status: "PENDING_UPLOAD",
       uploadedByType: "GUEST",
+      uploadedByHouseholdId: new Types.ObjectId("64b8f0000000000000000009"),
     } as unknown as IMedia;
 
     vi.spyOn(MediaRepository, "findById").mockResolvedValue(mockPendingMedia);
@@ -261,7 +267,12 @@ describe("Wedding Experience — P1 Security Regression Suite", () => {
     };
 
     await expect(
-      MediaService.completeUpload("64b8f0000000000000000002", "64b8f0000000000000000060", invalidInput)
+      MediaService.completeUpload(
+        "64b8f0000000000000000002",
+        "64b8f0000000000000000060",
+        invalidInput,
+        { type: "GUEST", householdId: "64b8f0000000000000000009" }
+      )
     ).rejects.toThrow("Invalid or cross-wedding upload key provided");
   });
 });

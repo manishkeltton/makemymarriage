@@ -13,7 +13,7 @@ Milestone 7 establishes the commercial foundation for Make My Marriage, converti
 The commercial system enforces:
 1. **Server-side Authoritative Entitlements**: Limits and features are derived strictly on the server; client parameters, return URLs, or local states are never trusted.
 2. **Quota & Limit Enforcement on Mutation Paths**: Every mutation (creating events, team members, guest households, tasks, uploads, and selecting premium website themes) evaluates the workspace's active subscription entitlements before executing.
-3. **Atomic Usage Measurement & Reservation**: Cumulative storage is calculated and verified prior to generating S3/R2 presigned upload intents.
+3. **Atomic Usage Measurement & Reservation**: Cumulative storage is calculated and verified before generating signed Cloudinary upload intents.
 4. **Subscription Lifecycle & Webhook Idempotency**: Supports automatic subscription transitions (`FREE`, `ACTIVE`, `PAST_DUE`, `CANCELED`, `EXPIRED`), HMAC signature verification, and idempotent webhook event processing.
 5. **Sandbox & Provider Integration**: Enables real payment gateway readiness (Razorpay / Stripe) alongside an instant `SANDBOX` simulation provider for offline/staging testing.
 6. **Platform Administration Interface**: Separates internal Make My Marriage platform staff (`isPlatformAdmin`) from workspace-level wedding `ADMIN` roles, supporting audited subscription overrides and workspace storage analytics.

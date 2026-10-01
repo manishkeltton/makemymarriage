@@ -26,7 +26,7 @@ The Wedding Experience module powers photo and video gallery management, guest m
 ## 2. Models & Database Schemas
 
 ### 2.1 `Media` (`media` collection)
-Stores file metadata for objects in Cloudflare R2 (MongoDB does not store binary files).
+Stores file metadata for authenticated Cloudinary assets and legacy R2 objects (MongoDB does not store binary files).
 - `weddingId` (ObjectId, ref: Wedding, index: true)
 - `albumId` (ObjectId, optional, ref: Album, index: true)
 - `objectKey` (string, unique)
@@ -83,7 +83,7 @@ Stores emergency contacts for events and wedding operations.
 
 1. **Tenant Isolation:** All operations enforce `weddingId` matching. Presigned upload URLs, media completions, access URL requests, guestbook submissions, and contact queries strictly enforce same-wedding boundary checks.
 2. **Guest Token Verification:** Guest upload and guestbook endpoints require a raw invitation token. The token is hashed via SHA-256 and matched against `guest_access_tokens`. The associated `GuestHousehold` must exist and have `galleryAccess == true`. Revoked tokens return `HTTP 401 FORBIDDEN / ACCESS_REVOKED`.
-3. **Short-Lived Signed URLs:** File delivery utilizes 60-second presigned GET URLs from Cloudflare R2 (`StorageService.accessUrl`). Pre-signed URLs expire quickly to prevent unauthorized sharing or caching of revoked content.
+3. **Short-Lived Signed URLs:** New files use authenticated Cloudinary delivery URLs from `StorageService.accessUrl`. Legacy R2 records retain temporary read compatibility while their `R2_*` credentials remain configured.
 4. **Moderation Rules:** Guest uploads (`uploadedByType == "GUEST"`) and guestbook entries start in `PENDING_APPROVAL` / `PENDING` status. Unapproved items are strictly hidden from guest listing responses, website sections, and public media delivery handlers.
 5. **Emergency Contact Privacy:** Public DTOs (`PublicEmergencyContactDTO`) filter out internal organiser notes (`notes`).
 
@@ -100,7 +100,7 @@ Stores emergency contacts for events and wedding operations.
 - `POST /api/v1/weddings/:weddingId/media/:mediaId/complete` — Verify upload metadata & mark uploaded
 - `GET /api/v1/weddings/:weddingId/media` — List wedding media (filtered by status, album, visibility)
 - `GET /api/v1/weddings/:weddingId/media/:mediaId/access-url` — Get 60s signed access URL
-- `DELETE /api/v1/weddings/:weddingId/media/:mediaId` — Delete media from R2 and MongoDB
+- `DELETE /api/v1/weddings/:weddingId/media/:mediaId` — Delete media from Cloudinary (or legacy R2) and MongoDB
 - `POST /api/v1/weddings/:weddingId/media/:mediaId/approve` — Approve pending guest upload
 - `POST /api/v1/weddings/:weddingId/media/:mediaId/reject` — Reject pending guest upload
 

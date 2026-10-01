@@ -1,25 +1,177 @@
 import "server-only";
-import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { createHash, timingSafeEqual } from "node:crypto";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { AppError } from "@/shared/errors/app-error";
-function config() {
- const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME } = process.env;
- if (!R2_ACCOUNT_ID || !/^[a-f\d]{32}$/i.test(R2_ACCOUNT_ID) || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) throw new AppError("DEPENDENCY_UNAVAILABLE", "Document storage is not configured", 503);
- return { client: new S3Client({ region: "auto", endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY }, maxAttempts: 2 }), bucket: R2_BUCKET_NAME };
+import { uploadPolicy } from "@/shared/storage/upload-policy";
+
+type ResourceType = "image" | "video" | "raw";
+type CloudinaryKey = { resourceType: ResourceType; format: string; publicId: string };
+
+function cloudinaryConfig() {
+  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+    throw new AppError("DEPENDENCY_UNAVAILABLE", "Cloudinary media storage is not configured", 503);
+  }
+  if (!/^[a-z0-9_-]+$/i.test(CLOUDINARY_CLOUD_NAME)) {
+    throw new AppError("DEPENDENCY_UNAVAILABLE", "Cloudinary cloud name is invalid", 503);
+  }
+  return { cloudName: CLOUDINARY_CLOUD_NAME, apiKey: CLOUDINARY_API_KEY, apiSecret: CLOUDINARY_API_SECRET };
 }
-export class StorageService {
- static async uploadUrl(key: string, mime: string, size: number) { const { client, bucket } = config(); return getSignedUrl(client, new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: mime, ContentLength: size }), { expiresIn: 300, signableHeaders: new Set(["content-type", "content-length"]) }); }
- static async verifyAndSeal(uploadKey: string, objectKey: string, mime: string, size: number) {
-  const { client, bucket } = config();
+
+function legacyR2Config() {
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME } = process.env;
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
+    throw new AppError("DEPENDENCY_UNAVAILABLE", "Legacy R2 storage is not configured", 503);
+  }
+  return {
+    bucket: R2_BUCKET_NAME,
+    client: new S3Client({
+      region: "auto",
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
+      maxAttempts: 2,
+    }),
+  };
+}
+
+function signature(params: Record<string, string>, secret: string) {
+  const input = Object.entries(params)
+    .filter(([, value]) => value !== "")
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
+  return createHash("sha1").update(`${input}${secret}`).digest("hex");
+}
+
+function encodeKey(value: CloudinaryKey) {
+  return `cloudinary:${Buffer.from(JSON.stringify(value)).toString("base64url")}`;
+}
+
+function parseKey(key: string): CloudinaryKey | null {
+  if (!key.startsWith("cloudinary:")) return null;
   try {
-   const head = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: uploadKey }));
-   if (head.ContentLength !== size || head.ContentType !== mime || !head.ETag) throw new AppError("VALIDATION_ERROR", "Uploaded file metadata does not match the upload intent");
-   // Copy with ETag precondition to an immutable key: an unexpired PUT URL cannot overwrite a finalized document.
-   await client.send(new CopyObjectCommand({ Bucket: bucket, Key: objectKey, CopySource: `${bucket}/${uploadKey}`, CopySourceIfMatch: head.ETag, MetadataDirective: "REPLACE", ContentType: mime, ContentDisposition: "attachment" }));
-   const sealed = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: objectKey }));
-   if (sealed.ContentLength !== size || sealed.ContentType !== mime) throw new AppError("VALIDATION_ERROR", "File verification failed");
-  } catch (error) { if (error instanceof AppError) throw error; throw new AppError("MEDIA_NOT_READY", "Upload could not be verified; retry after uploading", 409); }
- }
- static async accessUrl(key: string) { const { client, bucket } = config(); return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentDisposition: "attachment" }), { expiresIn: 60 }); }
- static async remove(key: string) { const { client, bucket } = config(); await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })); }
+    const parsed = JSON.parse(Buffer.from(key.slice(11), "base64url").toString("utf8")) as CloudinaryKey;
+    if (!["image", "video", "raw"].includes(parsed.resourceType)) return null;
+    if (!/^[a-z0-9]+$/i.test(parsed.format) || !parsed.publicId || parsed.publicId.includes("|")) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function cloudinaryJson(url: string, init: RequestInit, errorMessage: string) {
+  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) });
+  const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!response.ok) throw new AppError("MEDIA_NOT_READY", errorMessage, 409, body ?? undefined);
+  return body ?? {};
+}
+
+export class StorageService {
+  static objectKey(path: string, mimeType: string) {
+    let policy: ReturnType<typeof uploadPolicy>;
+    try {
+      policy = uploadPolicy(mimeType, 1);
+    } catch (error) {
+      throw new AppError("VALIDATION_ERROR", error instanceof Error ? error.message : "Unsupported file type", 400);
+    }
+    const cleanPath = path.replace(/[^a-zA-Z0-9/_-]+/g, "-").replace(/-+$/g, "");
+    const publicId = policy.resourceType === "raw" ? `${cleanPath}.${policy.format}` : cleanPath;
+    return encodeKey({ resourceType: policy.resourceType, format: policy.format, publicId });
+  }
+
+  static async uploadUrl(key: string, mimeType: string, sizeBytes: number) {
+    const parsed = parseKey(key);
+    if (!parsed) throw new AppError("VALIDATION_ERROR", "Invalid Cloudinary object key", 400);
+    let policy: ReturnType<typeof uploadPolicy>;
+    try {
+      policy = uploadPolicy(mimeType, sizeBytes);
+    } catch (error) {
+      throw new AppError("VALIDATION_ERROR", error instanceof Error ? error.message : "Invalid file", 400);
+    }
+    if (parsed.resourceType !== policy.resourceType || parsed.format !== policy.format) {
+      throw new AppError("VALIDATION_ERROR", "File type does not match its storage key", 400);
+    }
+    const config = cloudinaryConfig();
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const fields = {
+      public_id: parsed.publicId,
+      timestamp,
+      type: "authenticated",
+      overwrite: "false",
+    };
+    return {
+      uploadUrl: `https://api.cloudinary.com/v1_1/${config.cloudName}/${parsed.resourceType}/upload`,
+      uploadMethod: "POST" as const,
+      uploadFields: { ...fields, api_key: config.apiKey, signature: signature(fields, config.apiSecret) },
+    };
+  }
+
+  static async verifyAndSeal(uploadKey: string, objectKey: string, mimeType: string, sizeBytes: number) {
+    if (uploadKey !== objectKey) throw new AppError("FORBIDDEN", "Upload key does not match the stored asset", 403);
+    const parsed = parseKey(objectKey);
+    if (!parsed) throw new AppError("VALIDATION_ERROR", "Legacy pending uploads cannot be completed", 400);
+    let policy: ReturnType<typeof uploadPolicy>;
+    try {
+      policy = uploadPolicy(mimeType, sizeBytes);
+    } catch (error) {
+      throw new AppError("VALIDATION_ERROR", error instanceof Error ? error.message : "Invalid file", 400);
+    }
+    const config = cloudinaryConfig();
+    const basic = Buffer.from(`${config.apiKey}:${config.apiSecret}`).toString("base64");
+    const url = `https://api.cloudinary.com/v1_1/${config.cloudName}/resources/${parsed.resourceType}/authenticated/${encodeURIComponent(parsed.publicId)}`;
+    const asset = await cloudinaryJson(url, { headers: { Authorization: `Basic ${basic}` } }, "Upload could not be verified; retry after uploading");
+    const actualPublicId = String(asset.public_id ?? "");
+    const publicIdMatches = actualPublicId.length === parsed.publicId.length &&
+      timingSafeEqual(Buffer.from(actualPublicId), Buffer.from(parsed.publicId));
+    if (!publicIdMatches || asset.resource_type !== policy.resourceType || asset.type !== "authenticated" ||
+        String(asset.format ?? "").toLowerCase() !== policy.format || Number(asset.bytes) !== sizeBytes) {
+      throw new AppError("VALIDATION_ERROR", "Uploaded file metadata does not match the upload intent", 400);
+    }
+  }
+
+  static async accessUrl(key: string) {
+    const parsed = parseKey(key);
+    if (!parsed) {
+      const { client, bucket } = legacyR2Config();
+      return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 60 });
+    }
+    const config = cloudinaryConfig();
+    const now = Math.floor(Date.now() / 1000);
+    const fields = {
+      attachment: "false",
+      expires_at: (now + 60).toString(),
+      format: parsed.format,
+      public_id: parsed.publicId,
+      timestamp: now.toString(),
+      type: "authenticated",
+    };
+    const query = new URLSearchParams({ ...fields, api_key: config.apiKey, signature: signature(fields, config.apiSecret) });
+    return `https://api.cloudinary.com/v1_1/${config.cloudName}/${parsed.resourceType}/download?${query}`;
+  }
+
+  static async remove(key: string) {
+    const parsed = parseKey(key);
+    if (!parsed) {
+      const { client, bucket } = legacyR2Config();
+      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      return;
+    }
+    const config = cloudinaryConfig();
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const fields = { public_id: parsed.publicId, timestamp, type: "authenticated", invalidate: "true" };
+    const body = new URLSearchParams({ ...fields, api_key: config.apiKey, signature: signature(fields, config.apiSecret) });
+    const result = await cloudinaryJson(
+      `https://api.cloudinary.com/v1_1/${config.cloudName}/${parsed.resourceType}/destroy`,
+      { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body },
+      "Cloudinary asset could not be deleted"
+    );
+    if (result.result !== "ok" && result.result !== "not found") {
+      throw new AppError("INTERNAL_ERROR", "Cloudinary asset could not be deleted", 502);
+    }
+  }
 }

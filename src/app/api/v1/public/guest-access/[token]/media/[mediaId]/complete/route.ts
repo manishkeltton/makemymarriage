@@ -28,7 +28,10 @@ export async function POST(
       );
     }
 
-    const media = await MediaService.completeUpload(verified.weddingId, mediaId, parseResult.data);
+    const media = await MediaService.completeUpload(verified.weddingId, mediaId, parseResult.data, {
+      type: "GUEST",
+      householdId: verified.householdId,
+    });
     return NextResponse.json({ success: true, data: media }, { status: 200 });
   } catch (err: unknown) {
     if (err instanceof AppError) {

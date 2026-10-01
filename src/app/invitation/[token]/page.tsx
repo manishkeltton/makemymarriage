@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PublicGuestAccessDTO } from "@/modules/guests/dto/guest.dto";
 import { PublicMediaDTO, PublicAlbumDTO } from "@/modules/media/dto/media.dto";
 import { PublicGuestbookEntryDTO } from "@/modules/guestbook/dto/guestbook.dto";
+import { uploadToCloudinary, validateUploadFile } from "@/lib/uploads/cloudinary-upload";
 
 interface PublicInvitationPageProps {
   params: Promise<{ token: string }>;
@@ -193,6 +194,7 @@ export default function PublicInvitationPage({ params }: PublicInvitationPagePro
     setUploadSuccess(false);
 
     try {
+      validateUploadFile(uploadFile);
       const isVideo = uploadFile.type.startsWith("video/");
       const isAudio = uploadFile.type.startsWith("audio/");
       const mediaType = isVideo ? "VIDEO" : isAudio ? "AUDIO" : "IMAGE";
@@ -215,22 +217,10 @@ export default function PublicInvitationPage({ params }: PublicInvitationPagePro
         return;
       }
 
-      const { media, uploadUrl, uploadKey } = intentJson.data;
+      const { media, uploadUrl, uploadMethod, uploadFields, uploadKey } = intentJson.data;
 
-      // 2. Direct R2 Upload
-      const putRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": uploadFile.type || "application/octet-stream",
-          "Content-Length": uploadFile.size.toString(),
-        },
-        body: uploadFile,
-      });
-
-      if (!putRes.ok) {
-        alert("Direct upload failed.");
-        return;
-      }
+      // 2. Direct signed Cloudinary upload
+      await uploadToCloudinary({ uploadUrl, uploadMethod, uploadFields }, uploadFile);
 
       // 3. Complete
       const completeRes = await fetch(`/api/v1/public/guest-access/${token}/media/${media.id}/complete`, {
@@ -254,7 +244,7 @@ export default function PublicInvitationPage({ params }: PublicInvitationPagePro
       }
     } catch (err) {
       console.error("Guest upload error:", err);
-      alert("Upload failed.");
+      alert(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
     }

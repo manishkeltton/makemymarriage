@@ -9,12 +9,24 @@ import { StorageService } from "@/modules/documents/services/storage.service";
 import { AppError } from "@/shared/errors/app-error";
 import { EntitlementService } from "@/modules/billing/services/entitlement.service";
 
+export type MediaUploader = { type: UploadedByType; userId?: string; householdId?: string };
+
 export class MediaService {
   static async createUploadIntent(
     weddingId: string,
-    uploader: { type: UploadedByType; userId?: string; householdId?: string },
+    uploader: MediaUploader,
     input: UploadIntentInput | GuestUploadIntentInput
-  ): Promise<{ media: MediaDTO; uploadUrl: string; uploadKey: string }> {
+  ): Promise<Awaited<ReturnType<typeof StorageService.uploadUrl>> & { media: MediaDTO; uploadKey: string }> {
+    const expectedMediaType = input.mimeType.startsWith("image/")
+      ? "IMAGE"
+      : input.mimeType.startsWith("video/")
+        ? "VIDEO"
+        : input.mimeType.startsWith("audio/")
+          ? "AUDIO"
+          : "DOCUMENT";
+    if (input.mediaType !== expectedMediaType) {
+      throw new AppError("VALIDATION_ERROR", "File type does not match the selected media type", 400);
+    }
     // Entitlement Guardrail Check
     await EntitlementService.assertCanUploadMedia(weddingId, input.sizeBytes, input.mediaType);
 
@@ -29,11 +41,13 @@ export class MediaService {
 
     const uuid = randomUUID();
     const cleanFilename = input.originalFilename.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const uploadKey = `uploads/temp/${weddingId}/${uuid}-${cleanFilename}`;
-    const objectKey = `weddings/${weddingId}/media/${uuid}-${cleanFilename}`;
+    const objectKey = StorageService.objectKey(
+      `weddings/${weddingId}/media/${uuid}-${cleanFilename}`,
+      input.mimeType
+    );
+    const uploadKey = objectKey;
 
-    // Get presigned upload URL from R2
-    const uploadUrl = await StorageService.uploadUrl(uploadKey, input.mimeType, input.sizeBytes);
+    const upload = await StorageService.uploadUrl(uploadKey, input.mimeType, input.sizeBytes);
 
     const isMember = uploader.type === "MEMBER";
     const initialStatus: MediaStatus = "PENDING_UPLOAD";
@@ -56,7 +70,7 @@ export class MediaService {
 
     return {
       media: toMediaDTO(media),
-      uploadUrl,
+      ...upload,
       uploadKey,
     };
   }
@@ -64,7 +78,8 @@ export class MediaService {
   static async completeUpload(
     weddingId: string,
     mediaId: string,
-    input: CompleteUploadInput
+    input: CompleteUploadInput,
+    uploader: MediaUploader
   ): Promise<MediaDTO> {
     const media = await MediaRepository.findById(mediaId);
     if (!media || media.weddingId.toString() !== weddingId) {
@@ -75,17 +90,28 @@ export class MediaService {
       throw new AppError("CONFLICT", "Upload is not in PENDING_UPLOAD state", 409);
     }
 
-    const expectedPrefix = `uploads/temp/${weddingId}/`;
-    if (!input.uploadKey.startsWith(expectedPrefix)) {
-      throw new AppError("FORBIDDEN", "Invalid or cross-wedding upload key provided", 403);
+    const isOwner =
+      uploader.type === media.uploadedByType &&
+      (uploader.type === "GUEST"
+        ? Boolean(uploader.householdId && media.uploadedByHouseholdId?.toString() === uploader.householdId)
+        : Boolean(uploader.userId && media.uploadedByUserId?.toString() === uploader.userId));
+    if (!isOwner) {
+      throw new AppError("FORBIDDEN", "Only the original uploader can complete this upload", 403);
     }
 
-    // Verify file content in R2 and seal to immutable objectKey
+    if (input.uploadKey !== media.objectKey || input.objectKey !== media.objectKey) {
+      throw new AppError("FORBIDDEN", "Invalid or cross-wedding upload key provided", 403);
+    }
+    if (input.mimeType !== media.mimeType || input.sizeBytes !== media.sizeBytes) {
+      throw new AppError("VALIDATION_ERROR", "File metadata does not match the original upload intent", 400);
+    }
+
+    // Verify the authenticated Cloudinary asset against the original intent.
     await StorageService.verifyAndSeal(
       input.uploadKey,
       media.objectKey,
-      input.mimeType,
-      input.sizeBytes
+      media.mimeType,
+      media.sizeBytes
     );
 
     // Guest uploads go to PENDING_APPROVAL; Member uploads go to APPROVED
@@ -243,12 +269,7 @@ export class MediaService {
       throw new AppError("RESOURCE_NOT_FOUND", "Media item not found", 404);
     }
 
-    // Try deleting object from Cloudflare R2
-    try {
-      await StorageService.remove(media.objectKey);
-    } catch {
-      // Continue metadata deletion even if object cleanup fails
-    }
+    await StorageService.remove(media.objectKey);
 
     return MediaRepository.delete(mediaId);
   }

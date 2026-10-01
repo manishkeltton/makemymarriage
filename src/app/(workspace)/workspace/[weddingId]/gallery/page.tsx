@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, use } from "react";
 import { AlbumDTO, MediaDTO } from "@/modules/media/dto/media.dto";
+import { uploadToCloudinary, validateUploadFile } from "@/lib/uploads/cloudinary-upload";
 
 interface PageProps {
   params: Promise<{ weddingId: string }>;
@@ -141,6 +142,7 @@ export default function GalleryPage({ params }: PageProps) {
     setUploadProgress("Creating upload intent...");
 
     try {
+      validateUploadFile(uploadFile);
       const isVideo = uploadFile.type.startsWith("video/");
       const isAudio = uploadFile.type.startsWith("audio/");
       const mediaType = isVideo ? "VIDEO" : isAudio ? "AUDIO" : "IMAGE";
@@ -164,23 +166,11 @@ export default function GalleryPage({ params }: PageProps) {
         return;
       }
 
-      const { media, uploadUrl, uploadKey } = intentJson.data;
+      const { media, uploadUrl, uploadMethod, uploadFields, uploadKey } = intentJson.data;
 
-      // 2. Upload direct to R2 / Storage Service
+      // 2. Upload the file directly with the short-lived signed Cloudinary fields.
       setUploadProgress("Uploading file...");
-      const putRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": uploadFile.type || "application/octet-stream",
-          "Content-Length": uploadFile.size.toString(),
-        },
-        body: uploadFile,
-      });
-
-      if (!putRes.ok) {
-        alert("Direct storage upload failed. Please try again.");
-        return;
-      }
+      await uploadToCloudinary({ uploadUrl, uploadMethod, uploadFields }, uploadFile);
 
       // 3. Complete Upload & Seal Key
       setUploadProgress("Verifying upload...");
@@ -206,7 +196,7 @@ export default function GalleryPage({ params }: PageProps) {
       }
     } catch (err) {
       console.error("Upload error:", err);
-      alert("An unexpected upload error occurred.");
+      alert(err instanceof Error ? err.message : "An unexpected upload error occurred.");
     } finally {
       setUploading(false);
       setUploadProgress("");

@@ -1,6 +1,6 @@
 # Make My Marriage — Project Status
 
-Last updated: 2026-09-27
+Last updated: 2026-10-01
 
 This file tracks major implementation milestones. Add new features as work begins and update existing entries as they progress. Dates below indicate when progress was recorded, not necessarily when a feature was originally completed.
 
@@ -22,6 +22,7 @@ This file tracks major implementation milestones. Add new features as work begin
 | SaaS Commercialization & Admin      | Completed | 2026-09-26   |
 | Stitch UI Audit & Visual Alignment  | Completed | 2026-09-27   |
 | Password Recovery                 | Completed | 2026-10-01   |
+| Cloudinary Media Storage Migration | In progress | 2026-10-01 |
 | Pending Features & Future Roadmap     | Tracked   | 2026-09-26   |
 
 ## 1. Project scaffold
@@ -253,8 +254,14 @@ This file tracks major implementation milestones. Add new features as work begin
   - `npm run build` (`npx next build`): **PASS** (Production build completed cleanly with static page generation for `/forgot-password` and `/reset-password`).
 - **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
 
+## 16. Cloudinary Media Storage Migration
+
+- **Status:** In progress
+- **Last updated:** 2026-10-01
+- **Implemented:** Replaced new R2 upload intents with signed Cloudinary multipart uploads for member galleries and guest invitations. New assets are authenticated and non-overwritable. Completion is bound to the original uploader and verifies Cloudinary public ID, resource type, format, and byte count against the MongoDB intent. Added MIME and size policy enforcement, short-lived authenticated access URLs, Cloudinary deletion, browser upload handling, and optional legacy R2 read/delete compatibility.
+- **Key files:** `src/modules/documents/services/storage.service.ts`, `src/shared/storage/upload-policy.ts`, `src/lib/uploads/cloudinary-upload.ts`, media upload pages and completion routes, and `docs/15-Cloudinary-Setup.md`.
+- **Remaining:** Add real Cloudinary credentials locally and in production, run the documented image/video smoke tests, then migrate or remove legacy R2 assets. Binary uploads in the Documents screen, resumable uploads, thumbnails, and adaptive video streaming remain outside this migration.
+
 ## Future entries
 
 For each major feature, add a numbered entry with its name, status (`In progress`, `Blocked`, or `Completed`), last updated date, implemented scope, key files where useful, and remaining work or known limitations. Keep the overview and document's last updated date in sync with the entries.
-
-

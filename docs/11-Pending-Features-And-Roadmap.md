@@ -20,14 +20,14 @@ The following features are fully implemented in code but require external enviro
   2. Implement an automated background cron worker / queue runner to retry failed outbox jobs.
   3. Implement webhook endpoint for provider delivery callbacks (`DELIVERED`, `BOUNCED`, `COMPLAINT`).
 
-### 1.2 Binary Media Storage (Cloudflare R2)
-- **Status:** Code Implemented / Pending Credentials
-- **Required Env Vars:** `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`
-- **Description:** Media vault upload intents generate AWS S3 compatible presigned upload URLs. When credentials are unconfigured, upload intent APIs return `DEPENDENCY_UNAVAILABLE` (HTTP 503).
+### 1.2 Binary Media Storage (Cloudinary)
+- **Status:** Cloudinary Migration Implemented / Pending Credentials and Live Smoke Test
+- **Required Env Vars:** `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- **Description:** Media vault intents generate signed authenticated Cloudinary multipart uploads. Completion verifies provider metadata and uploader ownership. Missing credentials return `DEPENDENCY_UNAVAILABLE` (HTTP 503). Legacy R2 reads and deletes remain available when the former `R2_*` variables are retained.
 - **Future Tasks:**
-  1. Provision production Cloudflare R2 bucket with CORS policy permitting client PUT uploads.
-  2. Implement background media processing pipeline for automatic WebP image compression and thumbnail generation.
-  3. Implement video HLS transcoding for adaptive streaming playback.
+  1. Supply production Cloudinary credentials and complete the live smoke test in `docs/15-Cloudinary-Setup.md`.
+  2. Migrate or remove legacy R2 assets before retiring the optional `R2_*` settings.
+  3. Implement background image thumbnail generation and video adaptive streaming when product usage justifies it.
 
 ---
 
@@ -112,7 +112,7 @@ To transition from local/staging verification to high-scale production, the foll
 
 | Priority | Feature / Infrastructure | Module | Estimated Scope |
 |---|---|---|---|
-| **P1** | Cloudflare R2 Credentials & Production Storage | Gallery / Docs | Infrastructure |
+| **P1** | Cloudinary Credentials & Production Smoke Test | Gallery / Media | Infrastructure |
 | **P1** | Resend Email API Credentials & Outbox Worker | Team / System | Infrastructure |
 | **P2** | Event-Specific Guest RSVP Selection | Guests | Enhancements |
 | **P2** | Subtasks Hierarchy within Tasks | Planning | Enhancements |
