@@ -22,7 +22,8 @@ This file tracks major implementation milestones. Add new features as work begin
 | SaaS Commercialization & Admin      | Completed | 2026-09-26   |
 | Stitch UI Audit & Visual Alignment  | Completed | 2026-09-27   |
 | Password Recovery                 | Completed | 2026-10-01   |
-| Cloudinary Media Storage Migration | In progress | 2026-10-01 |
+| Cloudinary Media Storage Migration | Completed | 2026-10-01 |
+| V1 Documents & Attachments Vault  | Completed | 2026-10-01 |
 | Pending Features & Future Roadmap     | Tracked   | 2026-09-26   |
 
 ## 1. Project scaffold
@@ -256,11 +257,28 @@ This file tracks major implementation milestones. Add new features as work begin
 
 ## 16. Cloudinary Media Storage Migration
 
-- **Status:** In progress
+- **Status:** Completed
 - **Last updated:** 2026-10-01
-- **Implemented:** Replaced new R2 upload intents with signed Cloudinary multipart uploads for member galleries and guest invitations. New assets are authenticated and non-overwritable. Completion is bound to the original uploader and verifies Cloudinary public ID, resource type, format, and byte count against the MongoDB intent. Added MIME and size policy enforcement, short-lived authenticated access URLs, Cloudinary deletion, browser upload handling, and optional legacy R2 read/delete compatibility.
+- **Implemented:** Replaced legacy R2 upload intents with signed Cloudinary multipart uploads for member galleries, guest invitations, and document vault assets. New assets are authenticated and non-overwritable. Completion is bound to the original uploader and verifies Cloudinary public ID, resource type, format, and byte count against the intent. Added MIME and size policy enforcement, short-lived authenticated access URLs, Cloudinary deletion, browser upload handling, and legacy asset compatibility.
 - **Key files:** `src/modules/documents/services/storage.service.ts`, `src/shared/storage/upload-policy.ts`, `src/lib/uploads/cloudinary-upload.ts`, media upload pages and completion routes, and `docs/15-Cloudinary-Setup.md`.
-- **Remaining:** Add real Cloudinary credentials locally and in production, run the documented image/video smoke tests, then migrate or remove legacy R2 assets. Binary uploads in the Documents screen, resumable uploads, thumbnails, and adaptive video streaming remain outside this migration.
+
+## 17. V1 Documents & Attachments Vault
+
+- **Status:** Completed
+- **Last updated:** 2026-10-01
+- **Implemented:** Implemented the V1 Documents & Attachments Vault for Make My Marriage:
+  - **REST API Endpoints:** Created `/api/v1/weddings/[weddingId]/documents/intent` (POST upload intent), `/api/v1/weddings/[weddingId]/documents/[documentId]/access-url` (GET short-lived 60s signed access URL), and updated `/documents` (POST completion & GET listing) and `[documentId]` (DELETE reference-aware removal).
+  - **Binary Upload & Viewing UI:** Upgraded Workspace Documents Vault (`/workspace/[weddingId]/documents`), `ExpenseDetailDrawer`, and `TaskDetailDrawer` with direct browser binary file selection, real-time XHR upload progress indicators, type filtering (CONTRACT, INVOICE, RECEIPT, QUOTATION, MENU, OTHER), short-lived signed view/download links, and explicit `isUnavailable: true` badges for legacy records.
+  - **Same-Wedding Entity Validation:** Enforced same-wedding reference verification for all 4 attachment contexts (`EVENT`, `TASK`, `VENDOR`, `EXPENSE`).
+  - **SaaS Quota Enforcement:** Integrated `EntitlementService.assertCanUploadMedia(weddingId, sizeBytes, mimeType)` checking workspace storage limits (Free 1 GiB, Premium 25 GiB).
+  - **Reference-Aware Deletion:** Purges underlying Cloudinary asset on deletion only when unreferenced by other `Document` or `Media` records.
+  - **Privacy & Isolation:** Private documents are strictly isolated from public website and guest invitation endpoints.
+  - **Documentation & Test Suite:** Created `docs/16-Documents-And-Attachments.md` and comprehensive integration test suite in `src/__tests__/documents.test.ts`.
+- **Repository Verification Suite:**
+  - `npm run lint`: **PASS** (0 errors, 0 warnings).
+  - `npm run typecheck`: **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (20 test files, 189 passed, 100% pass rate).
+  - `npm run build`: **PASS** (Next.js production build succeeded with Turbopack).
 
 ## Future entries
 

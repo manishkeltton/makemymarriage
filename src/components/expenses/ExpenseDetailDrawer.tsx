@@ -6,6 +6,7 @@ import { DocumentDTO } from "@/modules/documents/dto/document.dto";
 import { TeamMemberDTO } from "@/modules/team/dto/team.dto";
 import { formatINR } from "@/lib/utils/money";
 import { PaymentFormModal } from "./PaymentFormModal";
+import { uploadDocumentToVault, openDocumentAccessUrl } from "@/lib/utils/document-upload";
 
 interface ExpenseDetailDrawerProps {
   isOpen: boolean;
@@ -38,7 +39,8 @@ export function ExpenseDetailDrawer({
 
   const [newDocTitle, setNewDocTitle] = useState("");
   const [newDocType, setNewDocType] = useState<"CONTRACT" | "INVOICE" | "RECEIPT" | "OTHER">("INVOICE");
-  const [newDocFileKey, setNewDocFileKey] = useState("");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [addingDoc, setAddingDoc] = useState(false);
 
   const fetchPayments = useCallback(async () => {
@@ -143,39 +145,46 @@ export function ExpenseDetailDrawer({
 
   const handleAddDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDocTitle.trim()) return;
+    if (!docFile || !expense) return;
 
     setAddingDoc(true);
+    setUploadProgress(0);
     try {
-      const res = await fetch(`/api/v1/weddings/${weddingId}/documents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newDocTitle.trim(),
-          type: newDocType,
-          relatedTo: {
-            type: "EXPENSE",
-            id: expense.id,
-          },
-          fileKey: newDocFileKey.trim() || `expenses/${expense.id}/${Date.now()}`,
-          mimeType: "application/pdf",
-        }),
+      await uploadDocumentToVault({
+        weddingId,
+        file: docFile,
+        title: newDocTitle.trim() || docFile.name,
+        type: newDocType,
+        relatedTo: {
+          type: "EXPENSE",
+          id: expense.id,
+        },
+        onProgress: (pct) => setUploadProgress(pct),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setNewDocTitle("");
-        setNewDocFileKey("");
-        fetchExpenseDocuments();
-        onExpenseUpdated();
-      } else {
-        alert(data.error?.message || "Failed to attach document.");
-      }
+      setNewDocTitle("");
+      setDocFile(null);
+      fetchExpenseDocuments();
+      onExpenseUpdated();
     } catch (err: unknown) {
       console.error("Error attaching document:", err);
-      alert("Failed to attach document.");
+      alert(err instanceof Error ? err.message : "Failed to attach document.");
     } finally {
       setAddingDoc(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!confirm("Are you sure you want to delete this attached document?")) return;
+    try {
+      const res = await fetch(`/api/v1/weddings/${weddingId}/documents/${docId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchExpenseDocuments();
+      }
+    } catch (err) {
+      console.error("Error deleting document:", err);
     }
   };
 
@@ -428,6 +437,31 @@ export function ExpenseDetailDrawer({
                         </div>
                       </div>
                     </div>
+
+                    <div className="flex items-center gap-1">
+                      {doc.isUnavailable ? (
+                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                          Unavailable
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openDocumentAccessUrl(weddingId, doc)}
+                          className="p-1 text-primary hover:bg-surface-container rounded transition-colors"
+                          title="View / Download Document"
+                        >
+                          <span className="material-symbols-outlined text-base">visibility</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDocument(doc.id)}
+                        className="p-1 text-on-surface-variant hover:text-error rounded transition-colors"
+                        title="Delete Document"
+                      >
+                        <span className="material-symbols-outlined text-base">delete</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -435,10 +469,22 @@ export function ExpenseDetailDrawer({
 
             {/* Attach Document Form */}
             <form onSubmit={handleAddDocument} className="pt-2 flex flex-col gap-2">
+              <input
+                type="file"
+                accept=".pdf,image/jpeg,image/png,image/webp,image/gif,image/heic"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null;
+                  setDocFile(f);
+                  if (f && !newDocTitle) {
+                    setNewDocTitle(f.name.replace(/\.[^/.]+$/, ""));
+                  }
+                }}
+                className="w-full px-3 py-1.5 bg-surface-container-low border border-outline/30 rounded-xl text-xs text-on-surface"
+              />
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Document Title (e.g. Invoice #104)"
+                  placeholder="Document Title (e.g. Catering Deposit Invoice)"
                   value={newDocTitle}
                   onChange={(e) => setNewDocTitle(e.target.value)}
                   className="flex-1 px-3 py-1.5 bg-surface-container-low border border-outline/30 rounded-xl text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
@@ -454,13 +500,20 @@ export function ExpenseDetailDrawer({
                   <option value="OTHER">OTHER</option>
                 </select>
               </div>
+
+              {addingDoc && (
+                <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-primary h-full transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={addingDoc || !newDocTitle.trim()}
+                disabled={addingDoc || !docFile}
                 className="py-1.5 px-3 bg-surface-container-high hover:bg-surface-container text-on-surface rounded-xl font-semibold text-xs transition-colors self-end flex items-center gap-1 disabled:opacity-40 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-sm">attach_file</span>
-                Link Document
+                {addingDoc ? `Uploading (${uploadProgress}%)...` : "Upload & Link Document"}
               </button>
             </form>
           </div>

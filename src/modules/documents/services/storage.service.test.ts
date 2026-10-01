@@ -44,4 +44,11 @@ describe("Cloudinary StorageService signing", () => {
     expect(accessUrl.searchParams.get("expires_at")).toBe("1800000060");
     expect(accessUrl.searchParams.get("signature")).toMatch(/^[a-f0-9]{40}$/);
   });
+
+  it("DOCUMENTS-P1-01: rejects verifyAndSeal when objectKey publicId does not match expectedWeddingId", async () => {
+    const crossTenantKey = StorageService.objectKey("weddings/weddingA/documents/contract.pdf", "application/pdf");
+    await expect(
+      StorageService.verifyAndSeal(crossTenantKey, crossTenantKey, "application/pdf", 1024, "weddingB")
+    ).rejects.toThrow("Object key does not belong to this wedding workspace");
+  });
 });

@@ -111,10 +111,21 @@ export class StorageService {
     };
   }
 
-  static async verifyAndSeal(uploadKey: string, objectKey: string, mimeType: string, sizeBytes: number) {
+  static async verifyAndSeal(
+    uploadKey: string,
+    objectKey: string,
+    mimeType: string,
+    sizeBytes: number,
+    expectedWeddingId?: string
+  ) {
     if (uploadKey !== objectKey) throw new AppError("FORBIDDEN", "Upload key does not match the stored asset", 403);
     const parsed = parseKey(objectKey);
     if (!parsed) throw new AppError("VALIDATION_ERROR", "Legacy pending uploads cannot be completed", 400);
+
+    if (expectedWeddingId && !parsed.publicId.startsWith(`weddings/${expectedWeddingId}/`)) {
+      throw new AppError("FORBIDDEN", "Object key does not belong to this wedding workspace", 403);
+    }
+
     let policy: ReturnType<typeof uploadPolicy>;
     try {
       policy = uploadPolicy(mimeType, sizeBytes);
@@ -128,8 +139,9 @@ export class StorageService {
     const actualPublicId = String(asset.public_id ?? "");
     const publicIdMatches = actualPublicId.length === parsed.publicId.length &&
       timingSafeEqual(Buffer.from(actualPublicId), Buffer.from(parsed.publicId));
+    const formatMatches = policy.resourceType === "raw" || String(asset.format ?? "").toLowerCase() === policy.format;
     if (!publicIdMatches || asset.resource_type !== policy.resourceType || asset.type !== "authenticated" ||
-        String(asset.format ?? "").toLowerCase() !== policy.format || Number(asset.bytes) !== sizeBytes) {
+        !formatMatches || Number(asset.bytes) !== sizeBytes) {
       throw new AppError("VALIDATION_ERROR", "Uploaded file metadata does not match the upload intent", 400);
     }
   }

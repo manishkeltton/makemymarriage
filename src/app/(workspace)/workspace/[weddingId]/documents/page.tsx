@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { DocumentDTO } from "@/modules/documents/dto/document.dto";
+import { DocumentDTO, DocumentType } from "@/modules/documents/dto/document.dto";
+import { uploadDocumentToVault, openDocumentAccessUrl } from "@/lib/utils/document-upload";
+
+function formatBytes(bytes?: number): string {
+  if (!bytes || bytes <= 0) return "";
+  const k = 1024;
+  const sizes = ["B", "KiB", "MiB", "GiB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
 
 export default function WorkspaceDocumentsPage({
   params,
@@ -17,8 +26,10 @@ export default function WorkspaceDocumentsPage({
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
-  const [uploadType, setUploadType] = useState("CONTRACT");
+  const [uploadType, setUploadType] = useState<DocumentType>("CONTRACT");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -52,30 +63,28 @@ export default function WorkspaceDocumentsPage({
 
   const handleUploadDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadTitle.trim()) return;
+    if (!selectedFile) return;
 
     setUploading(true);
+    setUploadProgress(0);
+    setError(null);
+
     try {
-      const res = await fetch(`/api/v1/weddings/${weddingId}/documents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: uploadTitle.trim(),
-          type: uploadType,
-        }),
+      const newDoc = await uploadDocumentToVault({
+        weddingId,
+        file: selectedFile,
+        title: uploadTitle.trim() || selectedFile.name,
+        type: uploadType,
+        onProgress: (pct) => setUploadProgress(pct),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setDocuments((prev) => [data.data, ...prev]);
-        setUploadTitle("");
-        setIsUploadModalOpen(false);
-      } else {
-        setError(data.error?.message || "Failed to upload document.");
-      }
-    } catch (err) {
+      setDocuments((prev) => [newDoc, ...prev]);
+      setUploadTitle("");
+      setSelectedFile(null);
+      setIsUploadModalOpen(false);
+    } catch (err: unknown) {
       console.error("Error uploading document:", err);
-      setError("Network error occurred.");
+      setError(err instanceof Error ? err.message : "Failed to upload document.");
     } finally {
       setUploading(false);
     }
@@ -90,9 +99,13 @@ export default function WorkspaceDocumentsPage({
       });
       if (res.ok) {
         setDocuments((prev) => prev.filter((d) => d.id !== documentId));
+      } else {
+        const data = await res.json();
+        alert(data.error?.message || "Failed to delete document.");
       }
     } catch (err) {
       console.error("Error deleting document:", err);
+      alert("Failed to delete document.");
     }
   };
 
@@ -125,7 +138,10 @@ export default function WorkspaceDocumentsPage({
         </div>
 
         <button
-          onClick={() => setIsUploadModalOpen(true)}
+          onClick={() => {
+            setError(null);
+            setIsUploadModalOpen(true);
+          }}
           className="h-10 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-body-sm text-xs font-semibold flex items-center gap-2 shadow-xs transition-all cursor-pointer self-start lg:self-auto"
           type="button"
         >
@@ -194,28 +210,48 @@ export default function WorkspaceDocumentsPage({
                   <span className="px-2.5 py-0.5 rounded-full bg-primary-fixed text-primary-container font-bold text-[10px] uppercase tracking-wider">
                     {doc.type}
                   </span>
-                  <button
-                    onClick={() => handleDeleteDocument(doc.id, doc.title)}
-                    className="p-1 text-on-surface-variant hover:text-error transition-colors"
-                    title="Delete document"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {doc.isUnavailable ? (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                        Unavailable
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => openDocumentAccessUrl(weddingId, doc)}
+                        className="p-1 text-primary-container hover:bg-primary-fixed rounded transition-colors"
+                        title="View / Download Document"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">visibility</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteDocument(doc.id, doc.title)}
+                      className="p-1 text-on-surface-variant hover:text-error transition-colors"
+                      title="Delete document"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  </div>
                 </div>
                 <h3 className="font-bold text-sm text-on-surface leading-snug">{doc.title}</h3>
                 <p className="text-[11px] text-on-surface-variant">
                   Uploaded by {doc.uploaderName || "Team Member"} on {new Date(doc.createdAt).toLocaleDateString()}
                 </p>
+                {doc.relatedTo && (
+                  <div className="text-[10px] text-on-surface-variant/80 font-medium">
+                    Bound to {doc.relatedTo.type} #{doc.relatedTo.id.slice(-6)}
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 border-t border-surface-container-high/40 flex items-center justify-between text-xs">
                 <span className="text-secondary font-semibold flex items-center gap-1">
                   <span className="material-symbols-outlined text-[16px]">verified</span>
-                  Vault Verified
+                  {doc.isUnavailable ? "Legacy Record" : "Vault Verified"}
                 </span>
-                <span className="text-on-surface-variant flex items-center gap-1 font-medium">
-                  <span className="material-symbols-outlined text-[16px]">description</span>
-                  {doc.mimeType || "Document"}
+                <span className="text-on-surface-variant flex items-center gap-1 font-medium text-[11px]">
+                  <span>{doc.mimeType?.includes("pdf") ? "PDF" : doc.mimeType || "File"}</span>
+                  {doc.fileSize && <span>({formatBytes(doc.fileSize)})</span>}
                 </span>
               </div>
             </div>
@@ -223,7 +259,7 @@ export default function WorkspaceDocumentsPage({
         </div>
       )}
 
-      {/* Upload Modal */}
+      {/* Direct Binary Upload Modal */}
       {isUploadModalOpen && (
         <div className="fixed inset-0 z-50 bg-on-surface/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-surface-container-high space-y-4">
@@ -238,6 +274,25 @@ export default function WorkspaceDocumentsPage({
             </div>
 
             <form onSubmit={handleUploadDocument} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold uppercase tracking-wider text-on-surface-variant mb-1.5">
+                  Select Document File (PDF or Image, max 10 MiB) *
+                </label>
+                <input
+                  type="file"
+                  required
+                  accept=".pdf,image/jpeg,image/png,image/webp,image/gif,image/heic"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setSelectedFile(file);
+                    if (file && !uploadTitle) {
+                      setUploadTitle(file.name.replace(/\.[^/.]+$/, ""));
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-surface-container-low border border-surface-container-high rounded-lg text-on-surface text-xs"
+                />
+              </div>
+
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-on-surface-variant mb-1.5">
                   Document Title *
@@ -258,7 +313,7 @@ export default function WorkspaceDocumentsPage({
                 </label>
                 <select
                   value={uploadType}
-                  onChange={(e) => setUploadType(e.target.value)}
+                  onChange={(e) => setUploadType(e.target.value as DocumentType)}
                   className="w-full px-3 py-2.5 bg-surface-container-low border border-surface-container-high rounded-lg text-on-surface font-medium"
                 >
                   <option value="CONTRACT">Contract &amp; Agreement</option>
@@ -270,6 +325,21 @@ export default function WorkspaceDocumentsPage({
                 </select>
               </div>
 
+              {uploading && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[11px] font-semibold text-on-surface-variant">
+                    <span>Uploading file...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-primary h-full transition-all duration-200"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-container-high/60">
                 <button
                   type="button"
@@ -280,11 +350,11 @@ export default function WorkspaceDocumentsPage({
                 </button>
                 <button
                   type="submit"
-                  disabled={uploading}
+                  disabled={uploading || !selectedFile}
                   className="px-5 py-2 rounded-lg bg-primary-container hover:bg-primary text-on-primary font-semibold shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {uploading && <span className="w-3.5 h-3.5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />}
-                  <span>Save to Vault</span>
+                  <span>Upload to Vault</span>
                 </button>
               </div>
             </form>

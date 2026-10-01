@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { TaskDTO, TaskCommentDTO } from "@/modules/tasks/dto/task.dto";
-import { DocumentDTO } from "@/modules/documents/dto/document.dto";
+import { DocumentDTO, DocumentType } from "@/modules/documents/dto/document.dto";
+import { uploadDocumentToVault, openDocumentAccessUrl } from "@/lib/utils/document-upload";
 
 interface TaskDetailDrawerProps {
   weddingId: string;
@@ -32,7 +33,9 @@ export function TaskDetailDrawer({
 
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
   const [newDocTitle, setNewDocTitle] = useState("");
-  const [newDocType, setNewDocType] = useState("CONTRACT");
+  const [newDocType, setNewDocType] = useState<DocumentType>("CONTRACT");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [addingDoc, setAddingDoc] = useState(false);
   const [showAddDocForm, setShowAddDocForm] = useState(false);
 
@@ -129,32 +132,46 @@ export function TaskDetailDrawer({
 
   const handleAddDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!task || !newDocTitle.trim()) return;
+    if (!task || !docFile) return;
 
     setAddingDoc(true);
+    setUploadProgress(0);
     try {
-      const res = await fetch(`/api/v1/weddings/${weddingId}/documents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newDocTitle.trim(),
-          type: newDocType,
-          relatedTo: {
-            type: "TASK",
-            id: task.id,
-          },
-        }),
+      const newDoc = await uploadDocumentToVault({
+        weddingId,
+        file: docFile,
+        title: newDocTitle.trim() || docFile.name,
+        type: newDocType,
+        relatedTo: {
+          type: "TASK",
+          id: task.id,
+        },
+        onProgress: (pct) => setUploadProgress(pct),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setDocuments((prev) => [data.data, ...prev]);
-        setNewDocTitle("");
-        setShowAddDocForm(false);
-      }
+
+      setDocuments((prev) => [newDoc, ...prev]);
+      setNewDocTitle("");
+      setDocFile(null);
+      setShowAddDocForm(false);
     } catch (err) {
       console.error("Error adding document:", err);
+      alert(err instanceof Error ? err.message : "Failed to attach document.");
     } finally {
       setAddingDoc(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!confirm("Are you sure you want to delete this attached document?")) return;
+    try {
+      const res = await fetch(`/api/v1/weddings/${weddingId}/documents/${docId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      }
+    } catch (err) {
+      console.error("Error deleting document:", err);
     }
   };
 
@@ -352,18 +369,30 @@ export function TaskDetailDrawer({
             {showAddDocForm && (
               <form onSubmit={handleAddDocument} className="p-3 rounded-xl bg-surface-container-low border border-surface-container-high space-y-2">
                 <input
-                  type="text"
+                  type="file"
                   required
+                  accept=".pdf,image/jpeg,image/png,image/webp,image/gif,image/heic"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setDocFile(f);
+                    if (f && !newDocTitle) {
+                      setNewDocTitle(f.name.replace(/\.[^/.]+$/, ""));
+                    }
+                  }}
+                  className="w-full px-3 py-1.5 rounded bg-surface-container-lowest border border-surface-container-high text-on-surface text-xs"
+                />
+                <input
+                  type="text"
                   placeholder="Document Title (e.g. DJ Contract, Menu Quote)"
                   value={newDocTitle}
                   onChange={(e) => setNewDocTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded bg-surface-container-lowest border border-surface-container-high text-on-surface"
+                  className="w-full px-3 py-2 rounded bg-surface-container-lowest border border-surface-container-high text-on-surface text-xs"
                 />
                 <div className="flex items-center justify-between gap-2">
                   <select
                     value={newDocType}
-                    onChange={(e) => setNewDocType(e.target.value)}
-                    className="bg-surface-container-lowest border border-surface-container-high rounded px-2 py-1 text-on-surface"
+                    onChange={(e) => setNewDocType(e.target.value as DocumentType)}
+                    className="bg-surface-container-lowest border border-surface-container-high rounded px-2 py-1 text-on-surface text-xs"
                   >
                     <option value="CONTRACT">Contract</option>
                     <option value="INVOICE">Invoice</option>
@@ -374,12 +403,17 @@ export function TaskDetailDrawer({
                   </select>
                   <button
                     type="submit"
-                    disabled={addingDoc}
-                    className="px-3 py-1 bg-primary-container text-on-primary font-semibold rounded hover:bg-primary transition-colors disabled:opacity-50"
+                    disabled={addingDoc || !docFile}
+                    className="px-3 py-1 bg-primary-container text-on-primary font-semibold rounded hover:bg-primary transition-colors disabled:opacity-50 cursor-pointer text-xs"
                   >
-                    {addingDoc ? "Saving..." : "Save Document"}
+                    {addingDoc ? `Uploading (${uploadProgress}%)...` : "Upload Document"}
                   </button>
                 </div>
+                {addingDoc && (
+                  <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-primary h-full transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
+                  </div>
+                )}
               </form>
             )}
 
@@ -399,7 +433,30 @@ export function TaskDetailDrawer({
                         <span className="text-[10px] text-on-surface-variant">{doc.type}</span>
                       </div>
                     </div>
-                    <span className="material-symbols-outlined text-on-surface-variant text-[18px]">verified</span>
+                    <div className="flex items-center gap-1">
+                      {doc.isUnavailable ? (
+                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                          Unavailable
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openDocumentAccessUrl(weddingId, doc)}
+                          className="p-1 text-primary-container hover:bg-surface-container-high rounded transition-colors"
+                          title="View / Download Document"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">visibility</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDocument(doc.id)}
+                        className="p-1 text-on-surface-variant hover:text-error rounded transition-colors"
+                        title="Delete Document"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

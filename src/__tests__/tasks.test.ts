@@ -5,6 +5,7 @@ import { TaskRepository } from "../modules/tasks/repositories/task.repository";
 import { TaskCommentRepository } from "../modules/tasks/repositories/task-comment.repository";
 import { DocumentRepository } from "../modules/documents/repositories/document.repository";
 import { DocumentService } from "../modules/documents/services/document.service";
+import { StorageService } from "../modules/documents/services/storage.service";
 import { NotificationService } from "../modules/notifications/services/notification.service";
 import { NotificationRepository } from "../modules/notifications/repositories/notification.repository";
 import { EventRepository } from "../modules/events/repositories/event.repository";
@@ -16,9 +17,31 @@ import { ITask } from "../modules/tasks/models/task.model";
 import { IDocument } from "../modules/documents/models/document.model";
 import { INotification } from "../modules/notifications/models/notification.model";
 
+vi.mock("server-only", () => ({}));
+
 vi.mock("../lib/db/connect", () => ({
   connectToDatabase: vi.fn().mockResolvedValue(true),
 }));
+
+vi.mock("../modules/documents/services/storage.service", () => ({
+  StorageService: {
+    objectKey: vi.fn((path, mime) => `cloudinary:${path}.${mime.includes("pdf") ? "pdf" : "jpg"}`),
+    uploadUrl: vi.fn().mockResolvedValue({ uploadUrl: "http://example.com" }),
+    verifyAndSeal: vi.fn().mockResolvedValue(true),
+    accessUrl: vi.fn().mockResolvedValue("http://example.com/doc.pdf"),
+  },
+}));
+
+vi.mock("../modules/documents/models/document.model", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../modules/documents/models/document.model")>();
+  return {
+    ...actual,
+    DocumentModel: {
+      findOne: vi.fn().mockResolvedValue(null),
+      countDocuments: vi.fn().mockResolvedValue(0),
+    },
+  };
+});
 
 vi.mock("../lib/db/models/User", () => ({
   User: {
@@ -455,12 +478,18 @@ describe("Planning Engine — Task, Checklist, Document & Notification Tests", (
 
       vi.spyOn(DocumentRepository, "create").mockResolvedValue(mockDoc as unknown as IDocument);
 
+      const validKey = StorageService.objectKey("weddings/w1/docs/cat", "application/pdf");
+
       const result = await DocumentService.createDocument({
         weddingId: fakeWeddingId,
         userId: fakeAdminUserId,
         payload: {
           title: "Caterer Agreement 2027",
           type: "CONTRACT",
+          uploadKey: validKey,
+          objectKey: validKey,
+          mimeType: "application/pdf",
+          fileSize: 200000,
         },
       });
 

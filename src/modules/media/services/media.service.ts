@@ -111,7 +111,8 @@ export class MediaService {
       input.uploadKey,
       media.objectKey,
       media.mimeType,
-      media.sizeBytes
+      media.sizeBytes,
+      media.weddingId.toString()
     );
 
     // Guest uploads go to PENDING_APPROVAL; Member uploads go to APPROVED
