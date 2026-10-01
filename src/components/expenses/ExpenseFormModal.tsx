@@ -12,6 +12,7 @@ interface ExpenseFormModalProps {
   expense?: ExpenseDTO | null;
   events: EventDTO[];
   vendors: VendorDTO[];
+  defaultEventId?: string;
   onClose: () => void;
   onSuccess: (savedExpense: ExpenseDTO) => void;
 }
@@ -22,6 +23,7 @@ export function ExpenseFormModal({
   expense,
   events,
   vendors,
+  defaultEventId,
   onClose,
   onSuccess,
 }: ExpenseFormModalProps) {
@@ -49,7 +51,7 @@ export function ExpenseFormModal({
       } else {
         setTitle("");
         setCategory("DECORATION");
-        setEventId("");
+        setEventId(defaultEventId || "");
         setVendorId("");
         setTotalAmountRupees("");
         setNotes("");
@@ -57,7 +59,7 @@ export function ExpenseFormModal({
       setError(null);
     };
     void Promise.resolve().then(initForm);
-  }, [expense, isOpen]);
+  }, [expense, isOpen, defaultEventId]);
 
   if (!isOpen) return null;
 

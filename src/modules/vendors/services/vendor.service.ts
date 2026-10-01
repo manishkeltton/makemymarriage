@@ -54,10 +54,10 @@ export class VendorService {
       const allEvents = await EventRepository.findEventsByWeddingId({ weddingId });
       const eventMap = new Map(allEvents.map((e) => [e._id.toString(), e.name]));
 
-      // Gather expense and payment totals per vendor
+      // Gather expense and payment totals per vendor (unpaginated for accurate metrics)
       const [expenses, payments] = await Promise.all([
-        ExpenseRepository.findExpensesByFilters({ weddingId }),
-        ExpensePaymentRepository.findPaymentsByFilters({ weddingId, status: "PAID" }),
+        ExpenseRepository.findExpensesByFilters({ weddingId, limit: 10000 }),
+        ExpensePaymentRepository.findPaymentsByFilters({ weddingId, status: "PAID", limit: 10000 }),
       ]);
 
       const paidByExpenseId = new Map<string, number>();
@@ -146,8 +146,8 @@ export class VendorService {
         })
         .filter(Boolean) as Array<{ id: string; name: string }>;
 
-      // Calculate vendor financials
-      const expenses = await ExpenseRepository.findExpensesByFilters({ weddingId, vendorId });
+      // Calculate vendor financials (unpaginated for accurate metrics)
+      const expenses = await ExpenseRepository.findExpensesByFilters({ weddingId, vendorId, limit: 10000 });
       const activeExpenses = expenses.expenses.filter((e) => e.approvalStatus !== "REJECTED");
       const activeExpIds = activeExpenses.map((e) => e._id.toString());
 
@@ -158,7 +158,7 @@ export class VendorService {
 
       let totalPaidPaise = 0;
       if (activeExpIds.length > 0) {
-        const payments = await ExpensePaymentRepository.findPaymentsByFilters({ weddingId, status: "PAID" });
+        const payments = await ExpensePaymentRepository.findPaymentsByFilters({ weddingId, status: "PAID", limit: 10000 });
         for (const p of payments.payments) {
           if (activeExpIds.includes(p.expenseId.toString())) {
             totalPaidPaise += p.amountPaise;
@@ -356,6 +356,92 @@ export class VendorService {
     } catch (err: unknown) {
       console.error("Error deleting vendor:", err);
       return { success: false, error: "Failed to delete vendor", code: "INTERNAL_ERROR" };
+    }
+  }
+
+  /**
+   * Links an existing same-wedding vendor to a ceremony atomically and idempotently.
+   */
+  static async linkVendorToEvent({
+    weddingId,
+    vendorId,
+    eventId,
+    userId,
+  }: {
+    weddingId: string;
+    vendorId: string;
+    eventId: string;
+    userId: string;
+  }): Promise<{ success: boolean; data?: VendorDTO; error?: string; code?: string }> {
+    await connectToDatabase();
+
+    const allowed = await VendorService.checkVendorAccess(weddingId, userId);
+    if (!allowed) {
+      return { success: false, error: "Access denied: requires vendor permission", code: "FORBIDDEN" };
+    }
+
+    const validEvent = await EventRepository.findByIdAndWeddingId({ weddingId, eventId });
+    if (!validEvent) {
+      return { success: false, error: "Referenced ceremony does not belong to this wedding workspace", code: "INVALID_EVENT" };
+    }
+
+    const hasEventAccess = await TeamAuthorization.requireEventAccess(weddingId, userId, eventId);
+    if (!hasEventAccess) {
+      return { success: false, error: "Access denied: you do not have permission for this ceremony", code: "FORBIDDEN" };
+    }
+
+    try {
+      const updated = await VendorRepository.addEventToVendor({ weddingId, vendorId, eventId });
+      if (!updated) {
+        return { success: false, error: "Vendor not found", code: "NOT_FOUND" };
+      }
+      return { success: true, data: toVendorDTO(updated) };
+    } catch (err: unknown) {
+      console.error("Error linking vendor to event:", err);
+      return { success: false, error: "Failed to link vendor to ceremony", code: "INTERNAL_ERROR" };
+    }
+  }
+
+  /**
+   * Unlinks a vendor from a ceremony atomically and idempotently.
+   */
+  static async unlinkVendorFromEvent({
+    weddingId,
+    vendorId,
+    eventId,
+    userId,
+  }: {
+    weddingId: string;
+    vendorId: string;
+    eventId: string;
+    userId: string;
+  }): Promise<{ success: boolean; data?: VendorDTO; error?: string; code?: string }> {
+    await connectToDatabase();
+
+    const allowed = await VendorService.checkVendorAccess(weddingId, userId);
+    if (!allowed) {
+      return { success: false, error: "Access denied: requires vendor permission", code: "FORBIDDEN" };
+    }
+
+    const validEvent = await EventRepository.findByIdAndWeddingId({ weddingId, eventId });
+    if (!validEvent) {
+      return { success: false, error: "Referenced ceremony does not belong to this wedding workspace", code: "INVALID_EVENT" };
+    }
+
+    const hasEventAccess = await TeamAuthorization.requireEventAccess(weddingId, userId, eventId);
+    if (!hasEventAccess) {
+      return { success: false, error: "Access denied: you do not have permission for this ceremony", code: "FORBIDDEN" };
+    }
+
+    try {
+      const updated = await VendorRepository.removeEventFromVendor({ weddingId, vendorId, eventId });
+      if (!updated) {
+        return { success: false, error: "Vendor not found", code: "NOT_FOUND" };
+      }
+      return { success: true, data: toVendorDTO(updated) };
+    } catch (err: unknown) {
+      console.error("Error unlinking vendor from event:", err);
+      return { success: false, error: "Failed to unlink vendor from ceremony", code: "INTERNAL_ERROR" };
     }
   }
 }

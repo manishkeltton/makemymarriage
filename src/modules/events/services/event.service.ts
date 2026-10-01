@@ -5,6 +5,7 @@ import { EventRepository, UpdateEventParams } from "../repositories/event.reposi
 import { EventDTO, toEventDTO } from "../dto/event.dto";
 import { CreateEventInput, UpdateEventInput } from "../validation/event.schemas";
 import { EntitlementService } from "@/modules/billing/services/entitlement.service";
+import { TeamAuthorization } from "@/modules/team/authorization/team.auth";
 
 export class EventService {
   /**
@@ -127,6 +128,11 @@ export class EventService {
       const member = await WeddingMemberRepository.findMember(weddingId, userId);
       if (!member) {
         return { success: false, error: "Access denied or wedding not found", code: "FORBIDDEN" };
+      }
+
+      const hasEventAccess = await TeamAuthorization.requireEventAccess(weddingId, userId, eventId);
+      if (!hasEventAccess) {
+        return { success: false, error: "Access denied: you do not have permission for this ceremony", code: "FORBIDDEN" };
       }
 
       const event = await EventRepository.findByIdAndWeddingId({ weddingId, eventId });

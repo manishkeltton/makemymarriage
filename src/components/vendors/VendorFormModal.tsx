@@ -10,6 +10,7 @@ interface VendorFormModalProps {
   weddingId: string;
   vendor?: VendorDTO | null;
   events: EventDTO[];
+  defaultEventId?: string;
   onClose: () => void;
   onSuccess: (savedVendor: VendorDTO) => void;
 }
@@ -19,6 +20,7 @@ export function VendorFormModal({
   weddingId,
   vendor,
   events,
+  defaultEventId,
   onClose,
   onSuccess,
 }: VendorFormModalProps) {
@@ -62,14 +64,14 @@ export function VendorFormModal({
         setAddress("");
         setWebsite("");
         setSocialUrl("");
-        setSelectedEventIds([]);
+        setSelectedEventIds(defaultEventId ? [defaultEventId] : []);
         setAgreedAmountRupees("");
         setNotes("");
       }
       setError(null);
     };
     void Promise.resolve().then(initForm);
-  }, [vendor, isOpen]);
+  }, [vendor, isOpen, defaultEventId]);
 
   if (!isOpen) return null;
 

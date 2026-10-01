@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { DocumentDTO, DocumentType } from "@/modules/documents/dto/document.dto";
 import { uploadDocumentToVault, openDocumentAccessUrl } from "@/lib/utils/document-upload";
 
@@ -18,6 +19,23 @@ export default function WorkspaceDocumentsPage({
   params: Promise<{ weddingId: string }>;
 }) {
   const { weddingId } = use(params);
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-on-surface-variant flex flex-col items-center justify-center gap-2">
+          <span className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <p>Loading document vault...</p>
+        </div>
+      }
+    >
+      <DocumentsContent weddingId={weddingId} />
+    </Suspense>
+  );
+}
+
+function DocumentsContent({ weddingId }: { weddingId: string }) {
+  const searchParams = useSearchParams();
+  const eventId = searchParams.get("eventId") || "";
 
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
   const [selectedType, setSelectedType] = useState<string>("");
@@ -38,6 +56,10 @@ export default function WorkspaceDocumentsPage({
       try {
         const query = new URLSearchParams();
         if (selectedType) query.append("type", selectedType);
+        if (eventId) {
+          query.append("relatedType", "EVENT");
+          query.append("relatedId", eventId);
+        }
 
         const res = await fetch(`/api/v1/weddings/${weddingId}/documents?${query.toString()}`);
         const data = await res.json();
@@ -59,7 +81,7 @@ export default function WorkspaceDocumentsPage({
     return () => {
       isMounted = false;
     };
-  }, [weddingId, selectedType]);
+  }, [weddingId, selectedType, eventId]);
 
   const handleUploadDocument = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +97,7 @@ export default function WorkspaceDocumentsPage({
         file: selectedFile,
         title: uploadTitle.trim() || selectedFile.name,
         type: uploadType,
+        relatedTo: eventId ? { type: "EVENT", id: eventId } : undefined,
         onProgress: (pct) => setUploadProgress(pct),
       });
 
@@ -128,6 +151,12 @@ export default function WorkspaceDocumentsPage({
             <span className="font-label-sm text-[11px] uppercase tracking-wider text-primary-container px-2.5 py-0.5 rounded-full bg-primary-fixed font-bold">
               Document Vault
             </span>
+            {eventId && (
+              <span className="font-label-sm text-[11px] uppercase tracking-wider text-secondary px-2.5 py-0.5 rounded-full bg-secondary-container font-bold flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">event</span>
+                <span>Filtered by Ceremony Context</span>
+              </span>
+            )}
           </div>
           <h1 className="font-headline-lg text-2xl sm:text-3xl tracking-tight font-bold text-on-surface">
             Documents &amp; Contracts Vault

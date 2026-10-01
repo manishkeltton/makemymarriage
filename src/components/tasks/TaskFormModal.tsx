@@ -6,6 +6,7 @@ import { TaskDTO } from "@/modules/tasks/dto/task.dto";
 interface TaskFormModalProps {
   weddingId: string;
   taskToEdit?: TaskDTO | null;
+  defaultEventId?: string;
   events?: Array<{ id: string; name: string }>;
   teamMembers?: Array<{ userId: string; userName: string }>;
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface TaskFormModalProps {
 export function TaskFormModal({
   weddingId,
   taskToEdit,
+  defaultEventId,
   events = [],
   teamMembers = [],
   isOpen,
@@ -28,13 +30,33 @@ export function TaskFormModal({
   const [formData, setFormData] = useState({
     title: taskToEdit?.title || "",
     description: taskToEdit?.description || "",
-    eventId: taskToEdit?.eventId || "",
+    eventId: taskToEdit?.eventId || defaultEventId || "",
     assignedTo: taskToEdit?.assignedTo || "",
     priority: taskToEdit?.priority || "MEDIUM",
     status: taskToEdit?.status || "TODO",
     dueAt: taskToEdit?.dueAt ? taskToEdit.dueAt.slice(0, 10) : "",
     reminderAt: taskToEdit?.reminderAt ? taskToEdit.reminderAt.slice(0, 10) : "",
   });
+
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevTaskToEdit, setPrevTaskToEdit] = useState(taskToEdit);
+
+  if (isOpen !== prevIsOpen || taskToEdit !== prevTaskToEdit) {
+    setPrevIsOpen(isOpen);
+    setPrevTaskToEdit(taskToEdit);
+    if (isOpen) {
+      setFormData({
+        title: taskToEdit?.title || "",
+        description: taskToEdit?.description || "",
+        eventId: taskToEdit?.eventId || defaultEventId || "",
+        assignedTo: taskToEdit?.assignedTo || "",
+        priority: taskToEdit?.priority || "MEDIUM",
+        status: taskToEdit?.status || "TODO",
+        dueAt: taskToEdit?.dueAt ? taskToEdit.dueAt.slice(0, 10) : "",
+        reminderAt: taskToEdit?.reminderAt ? taskToEdit.reminderAt.slice(0, 10) : "",
+      });
+    }
+  }
 
   if (!isOpen) return null;
 

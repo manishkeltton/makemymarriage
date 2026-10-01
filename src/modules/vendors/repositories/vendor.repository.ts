@@ -212,4 +212,56 @@ export class VendorRepository {
     const wId = typeof weddingId === "string" ? new Types.ObjectId(weddingId) : weddingId;
     return await VendorModel.countDocuments({ weddingId: wId });
   }
+
+  /**
+   * Atomically adds an eventId to a vendor's eventIds array (idempotent via $addToSet).
+   */
+  static async addEventToVendor({
+    weddingId,
+    vendorId,
+    eventId,
+  }: {
+    weddingId: string | Types.ObjectId;
+    vendorId: string | Types.ObjectId;
+    eventId: string | Types.ObjectId;
+  }): Promise<IVendor | null> {
+    if (!Types.ObjectId.isValid(weddingId) || !Types.ObjectId.isValid(vendorId) || !Types.ObjectId.isValid(eventId)) {
+      return null;
+    }
+    const wId = typeof weddingId === "string" ? new Types.ObjectId(weddingId) : weddingId;
+    const vId = typeof vendorId === "string" ? new Types.ObjectId(vendorId) : vendorId;
+    const eId = typeof eventId === "string" ? new Types.ObjectId(eventId) : eventId;
+
+    return await VendorModel.findOneAndUpdate(
+      { _id: vId, weddingId: wId },
+      { $addToSet: { eventIds: eId } },
+      { new: true, runValidators: true }
+    ).exec();
+  }
+
+  /**
+   * Atomically removes an eventId from a vendor's eventIds array (idempotent via $pull).
+   */
+  static async removeEventFromVendor({
+    weddingId,
+    vendorId,
+    eventId,
+  }: {
+    weddingId: string | Types.ObjectId;
+    vendorId: string | Types.ObjectId;
+    eventId: string | Types.ObjectId;
+  }): Promise<IVendor | null> {
+    if (!Types.ObjectId.isValid(weddingId) || !Types.ObjectId.isValid(vendorId) || !Types.ObjectId.isValid(eventId)) {
+      return null;
+    }
+    const wId = typeof weddingId === "string" ? new Types.ObjectId(weddingId) : weddingId;
+    const vId = typeof vendorId === "string" ? new Types.ObjectId(vendorId) : vendorId;
+    const eId = typeof eventId === "string" ? new Types.ObjectId(eventId) : eventId;
+
+    return await VendorModel.findOneAndUpdate(
+      { _id: vId, weddingId: wId },
+      { $pull: { eventIds: eId } },
+      { new: true, runValidators: true }
+    ).exec();
+  }
 }

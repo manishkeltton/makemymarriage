@@ -70,7 +70,7 @@ export class ExpenseRepository {
     params: ExpenseFilterParams
   ): Promise<{ expenses: IExpense[]; nextCursor?: string; hasMore: boolean; totalCount: number }> {
     const wId = typeof params.weddingId === "string" ? new Types.ObjectId(params.weddingId) : params.weddingId;
-    const limit = Math.min(Math.max(params.limit || 50, 1), 100);
+    const limit = Math.min(Math.max(params.limit || 50, 1), 10000);
 
     const query: Record<string, unknown> = { weddingId: wId };
 

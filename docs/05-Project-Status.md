@@ -24,6 +24,7 @@ This file tracks major implementation milestones. Add new features as work begin
 | Password Recovery                 | Completed | 2026-10-01   |
 | Cloudinary Media Storage Migration | Completed | 2026-10-01 |
 | V1 Documents & Attachments Vault  | Completed | 2026-10-01 |
+| V1 Event/Ceremony Workspace Integration | Completed | 2026-10-01 |
 | Pending Features & Future Roadmap     | Tracked   | 2026-09-26   |
 
 ## 1. Project scaffold
@@ -274,11 +275,25 @@ This file tracks major implementation milestones. Add new features as work begin
   - **Reference-Aware Deletion:** Purges underlying Cloudinary asset on deletion only when unreferenced by other `Document` or `Media` records.
   - **Privacy & Isolation:** Private documents are strictly isolated from public website and guest invitation endpoints.
   - **Documentation & Test Suite:** Created `docs/16-Documents-And-Attachments.md` and comprehensive integration test suite in `src/__tests__/documents.test.ts`.
+## 18. V1 Event/Ceremony Workspace Integration
+
+- **Status:** Completed
+- **Last updated:** 2026-10-02
+- **Implemented:** Implemented the V1 Event/Ceremony Workspace Integration for Make My Marriage:
+  - **Vendor Ceremony Association:** Created atomic, idempotent MongoDB `$addToSet` and `$pull` methods in `VendorRepository` (`addEventToVendor`, `removeEventFromVendor`). Implemented `VendorService.linkVendorToEvent` and `unlinkVendorFromEvent` with same-wedding verification and team permission enforcement. Unlinking removes the selected ceremony link while preserving the vendor record and other ceremony links.
+  - **REST API Endpoint:** Created `/api/v1/weddings/[weddingId]/vendors/[vendorId]/events/[eventId]` (POST to link, DELETE to unlink) with 401/403/404 handling.
+  - **Ceremony Vendors & Expenses UI:** Built full ceremony workspace tabs in `EventDetailView` (`src/components/events/event-detail-view.tsx`). Includes linked vendors list with contract status pills, "Link Existing Vendor" modal, "Add Vendor" prefilled creation modal, and "Unlink" action. Added ceremony expense list, prefilled expense creation, and direct `ExpenseDetailDrawer` integration.
+  - **Ceremony Financial Metrics Engine:** Implemented accurate integer paise calculation cards for Total Expenses, Confirmed Paid, and Outstanding Balance for each ceremony. Excludes `REJECTED` expenses from calculations.
+  - **Tasks & Documents Ceremony Context:** Connected Tasks page (`/workspace/[weddingId]/tasks?eventId=...`) and Documents page (`/workspace/[weddingId]/documents?eventId=...`) to ceremony context. Pre-filters workspace views and pre-fills ceremony intent when creating tasks or uploading documents.
+  - **Approved P0/P1 Code Review Finding Fixes (2026-10-02):**
+    - `CEREMONY-P1-01`: Passed `{ limit: 10000 }` in unpaginated `findExpensesByFilters` and `findPaymentsByFilters` calls across `VendorService.getVendors` and `getVendorById`, eliminating metric truncation for workspaces/vendors with >50 expenses/payments.
+    - `CEREMONY-P1-02`: Enforced `TeamAuthorization.requireEventAccess(weddingId, userId, eventId)` in `EventService.getEventById` and Vendor Link/Unlink APIs, returning HTTP 403 `FORBIDDEN` for restricted team members.
+  - **Documentation & Integration Test Suite:** Created `docs/17-Event-Ceremony-Workspace.md` and integration test suite in `src/__tests__/event-workspace.test.ts`. Updated review report in `docs/reviews/event-ceremony-workspace-review.md`.
 - **Repository Verification Suite:**
   - `npm run lint`: **PASS** (0 errors, 0 warnings).
   - `npm run typecheck`: **PASS** (0 errors).
-  - `npx vitest run`: **PASS** (20 test files, 189 passed, 100% pass rate).
-  - `npm run build`: **PASS** (Next.js production build succeeded with Turbopack).
+  - `npx vitest run`: **PASS** (21 test files, 197 passed, 100% pass rate).
+  - `npm run build`: **PASS** (Next.js production build verified).
 
 ## Future entries
 

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, use } from "react";
+import React, { useState, useEffect, useCallback, use, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { TaskDTO, TaskSummaryDTO } from "@/modules/tasks/dto/task.dto";
 import { EventDTO } from "@/modules/events/dto/event.dto";
 import { TeamMemberDTO } from "@/modules/team/dto/team.dto";
@@ -14,6 +15,23 @@ export default function WorkspaceTasksPage({
   params: Promise<{ weddingId: string }>;
 }) {
   const { weddingId } = use(params);
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-on-surface-variant flex flex-col items-center justify-center gap-2">
+          <span className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <p>Loading tasks workspace...</p>
+        </div>
+      }
+    >
+      <TasksContent weddingId={weddingId} />
+    </Suspense>
+  );
+}
+
+function TasksContent({ weddingId }: { weddingId: string }) {
+  const searchParams = useSearchParams();
+  const urlEventId = searchParams.get("eventId") || "";
 
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [events, setEvents] = useState<EventDTO[]>([]);
@@ -25,7 +43,8 @@ export default function WorkspaceTasksPage({
   >("ALL");
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedEventId, setSelectedEventId] = useState("");
+  const [overrideEventId, setOverrideEventId] = useState<string | null>(null);
+  const selectedEventId = overrideEventId ?? urlEventId;
   const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
@@ -442,7 +461,7 @@ export default function WorkspaceTasksPage({
             {/* Ceremony Filter */}
             <select
               value={selectedEventId}
-              onChange={(e) => setSelectedEventId(e.target.value)}
+              onChange={(e) => setOverrideEventId(e.target.value)}
               className="h-10 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-medium border-0 focus:ring-1 focus:ring-primary-container"
             >
               <option value="">Ceremony: All</option>
@@ -721,6 +740,7 @@ export default function WorkspaceTasksPage({
         weddingId={weddingId}
         events={events}
         teamMembers={teamMembers}
+        defaultEventId={selectedEventId}
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
         onSuccess={handleTaskCreated}
