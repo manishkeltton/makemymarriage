@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { getSessionToken } from "@/lib/auth/session";
 import { AuthService } from "@/lib/services/auth.service";
 import { EventService } from "@/modules/events/services/event.service";
-import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 import { EventDetailView } from "@/components/events/event-detail-view";
 
 export default async function WorkspaceEventDetailPage({

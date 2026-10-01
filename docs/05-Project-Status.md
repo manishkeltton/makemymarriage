@@ -21,6 +21,7 @@ This file tracks major implementation milestones. Add new features as work begin
 | Wedding Experience — Gallery & Wishes  | Completed | 2026-09-26   |
 | SaaS Commercialization & Admin      | Completed | 2026-09-26   |
 | Stitch UI Audit & Visual Alignment  | Completed | 2026-09-27   |
+| Password Recovery                 | Completed | 2026-10-01   |
 | Pending Features & Future Roadmap     | Tracked   | 2026-09-26   |
 
 ## 1. Project scaffold
@@ -42,10 +43,10 @@ This file tracks major implementation milestones. Add new features as work begin
 ## 3. Authentication & Session Management
 
 - **Status:** Completed
-- **Last updated:** 2026-09-23
-- **Implemented:** Implemented the custom session-based Authentication flow backed by MongoDB as described in the PRD and API Design. Includes `User` and `Session` database models, a robust `AuthService`, encrypted password hashing using `bcryptjs`, HttpOnly secure cookie management, and API routes for `signup`, `login`, `logout`, and `session`. Built the `/signup`, `/login`, and `/workspace` frontend UI pages with full session management and Sign Out actions. Comprehensive automated manual browser testing performed verifying signup, field validations, sign out, invalid login handling, duplicate email prevention, and session persistence.
-- **Key files:** `src/lib/db/models/`, `src/lib/services/auth.service.ts`, `src/app/api/v1/auth/`, `src/app/(auth)/`, `src/app/(workspace)/workspace/page.tsx`.
-- **Scope:** This covers the ability for a user to register an account and authenticate.
+- **Last updated:** 2026-10-01
+- **Implemented:** Implemented the custom session-based Authentication flow backed by MongoDB as described in the PRD and API Design. Includes `User`, `Session`, and `PasswordResetToken` database models, a robust `AuthService`, encrypted password hashing using `bcryptjs`, HttpOnly secure cookie management, and API routes for `signup`, `login`, `logout`, `session`, `forgot-password`, and `reset-password`. Built `/signup`, `/login`, `/forgot-password`, `/reset-password`, and `/workspace` frontend UI pages. Integrated single-use atomic reset tokens, session revocation upon password update, outbox payload sanitization (`EmailJob`), neutral responses against account enumeration, and `APP_ORIGIN` precedence fix (`RECOVERY-P1-01`).
+- **Key files:** `src/lib/db/models/`, `src/lib/services/auth.service.ts`, `src/lib/services/email.service.ts`, `src/app/api/v1/auth/`, `src/app/(auth)/`, `docs/14-Password-Recovery.md`, `docs/reviews/password-recovery-review.md`.
+- **Scope:** Covers registration, authentication, session persistence, and complete password recovery.
 
 ## 4. Workspace & Wedding Tenant Management
 
@@ -236,7 +237,21 @@ This file tracks major implementation milestones. Add new features as work begin
 - **Last updated:** 2026-09-27
 - **Implemented:** Executed thorough visual UI audit and code-level corrections across all V1 screens (Milestones 1–7) against approved Stitch reference designs (`projects/9705578657101269064` and canvas specs). Refactored auth cards, task planning engine layouts, budget/expense drawers, guest household rosters, digital invitation portals, website builder, gallery moderation, emergency directory, and SaaS billing meters to match Stitch geometry, `#762B3A` ceremonial wine accents, typography hierarchy, `rounded-2xl` cards, pill tags, and responsive viewports.
 - **Key files:** All workspace components under `src/components/`, `src/app/(auth)/`, `src/app/(workspace)/`, `src/app/invitation/`, `src/app/w/`, and [docs/13-Stitch-UI-Audit.md](file:///var/www/html/makemymarriage/docs/13-Stitch-UI-Audit.md).
-- **Verification:** 21 high-resolution Chrome screenshots captured across desktop (1280x960) and mobile (390x844) viewports. TypeScript compilation passed (0 errors), Vitest suite passed (168/168 tests across 17 test files, 100% pass rate), and production build succeeded.
+## 15. Password Recovery
+
+- **Status:** Completed
+- **Last updated:** 2026-10-01
+- **Implemented:** Implemented complete end-to-end Password Recovery module for Make My Marriage matching approved Stitch auth layouts and system/database design specs.
+  - **Frontend UI Pages:** Built `/forgot-password` (email entry, neutral confirmation state, loading indicator, rate-limit error handling) and `/reset-password` (token query extraction, show/hide password toggles, server-side & client-side password length checks, invalid link alert, and 2.5s auto-redirect to `/login` upon success).
+  - **Auth & Email Services:** Refactored `AuthService.forgotPassword` and `AuthService.resetPassword`. `EmailJob` outbox persistence strictly enforces the hash-only rule (storing `tokenHash`, `userName`, and `expiresAt` without raw token or complete URL string in MongoDB). Implemented branded HTML email delivery via `EmailService.enqueuePasswordResetEmail`.
+  - **Atomic & Session Security:** `resetPassword` consumes tokens atomically using `findOneAndUpdate({ tokenHash, usedAt: { $exists: false }, expiresAt: { $gt: new Date() } }, { $set: { usedAt: new Date() } })`. Automatically invalidates all remaining outstanding reset tokens for the user and revokes all active sessions (`Session.deleteMany`).
+  - **Documentation:** Created [docs/14-Password-Recovery.md](file:///var/www/html/makemymarriage/docs/14-Password-Recovery.md).
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint` (`eslint . --max-warnings=0`): **PASS** (0 errors, 0 warnings).
+  - `npm run typecheck` (`tsc --noEmit`): **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (17 test files, 171 passed, 100% pass rate).
+  - `npm run build` (`npx next build`): **PASS** (Production build completed cleanly with static page generation for `/forgot-password` and `/reset-password`).
+- **Final Recommendation:** **Ready for sign-off** (Technical & Operational Verification Complete).
 
 ## Future entries
 

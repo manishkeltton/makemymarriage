@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { getSessionToken } from "@/lib/auth/session";
 import { AuthService } from "@/lib/services/auth.service";
 import { WeddingService } from "@/modules/weddings/services/wedding.service";
-import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 import { ActionButton } from "@/components/workspace/action-button";
 import { formatINR } from "@/lib/utils/money";
 

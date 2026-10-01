@@ -30,7 +30,7 @@ async function runM6Verification() {
   await sleep(500);
 
   // 1. Signup
-  const signupRes = await page.evaluate(async (email, ipHeader) => {
+  await page.evaluate(async (email, ipHeader) => {
     const res = await fetch("/api/v1/auth/signup", {
       method: "POST",
       headers: { 

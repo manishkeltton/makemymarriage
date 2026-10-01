@@ -186,7 +186,7 @@ export class AuthService {
   }
 
   /**
-   * Generates a password reset token and "sends" it.
+   * Generates a password reset token, persists hash, and dispatches reset email.
    */
   static async forgotPassword(email: string): Promise<void> {
     await connectToDatabase();
@@ -199,34 +199,72 @@ export class AuthService {
       return;
     }
 
+    const crypto = await import("crypto");
     const { PasswordResetToken } = await import("../db/models/PasswordResetToken");
-    import("crypto").then(crypto => {
-      const token = crypto.randomBytes(32).toString("hex");
-      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-      
-      PasswordResetToken.create({
-        userId: user._id,
-        tokenHash,
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60), // 1 hour expiry
-      });
+    const { EmailService } = await import("./email.service");
 
-      // TODO: Actually send email with token
-      console.log(`[EMAIL JOB STUB] Password reset token for ${email}: ${token}`);
+    const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour expiry
+
+    await PasswordResetToken.create({
+      userId: user._id,
+      tokenHash,
+      expiresAt,
     });
+
+    const baseUrl =
+      process.env.APP_ORIGIN?.trim() ||
+      process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    const resetUrl = `${baseUrl.replace(/\/$/, "")}/reset-password?token=${token}`;
+
+    try {
+      await EmailService.enqueuePasswordResetEmail({
+        toEmail: user.email,
+        userName: user.name,
+        resetUrl,
+        tokenHash,
+        expiresAt,
+      });
+    } catch (err) {
+      console.error("[AuthService.forgotPassword] Delivery dispatch exception:", err);
+    }
   }
 
   /**
-   * Resets the password using a valid token.
+   * Resets the password using a valid token, invalidates outstanding tokens, and revokes sessions.
    */
   static async resetPassword(token: string, passwordPlain: string): Promise<{ success: boolean; error?: string; code?: string }> {
     await connectToDatabase();
+
+    if (!passwordPlain || passwordPlain.length < 8 || passwordPlain.length > 100) {
+      return {
+        success: false,
+        error: "Password must be between 8 and 100 characters long",
+        code: "VALIDATION_ERROR",
+      };
+    }
+
     const crypto = await import("crypto");
     const { PasswordResetToken } = await import("../db/models/PasswordResetToken");
 
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-    const resetToken = await PasswordResetToken.findOne({ tokenHash, usedAt: { $exists: false } });
 
-    if (!resetToken || resetToken.expiresAt < new Date()) {
+    // Atomic single-use consumption under concurrent requests
+    const resetToken = await PasswordResetToken.findOneAndUpdate(
+      {
+        tokenHash,
+        usedAt: { $exists: false },
+        expiresAt: { $gt: new Date() },
+      },
+      {
+        $set: { usedAt: new Date() },
+      },
+      { new: true }
+    );
+
+    if (!resetToken) {
       return { success: false, error: "Invalid or expired reset token", code: "RESET_TOKEN_INVALID" };
     }
 
@@ -234,11 +272,14 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(passwordPlain, salt);
 
     await User.updateOne({ _id: resetToken.userId }, { passwordHash });
-    
-    resetToken.usedAt = new Date();
-    await resetToken.save();
 
-    // Revoke all existing sessions for this user
+    // Invalidate all remaining outstanding reset tokens for this user
+    await PasswordResetToken.updateMany(
+      { userId: resetToken.userId, usedAt: { $exists: false } },
+      { $set: { usedAt: new Date() } }
+    );
+
+    // Revoke all existing active sessions for this user
     await Session.deleteMany({ userId: resetToken.userId });
 
     return { success: true };

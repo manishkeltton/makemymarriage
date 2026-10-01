@@ -5,7 +5,6 @@ import { getSessionToken } from "@/lib/auth/session";
 import { AuthService } from "@/lib/services/auth.service";
 import { TeamService } from "@/modules/team/services/team.service";
 import { EventService } from "@/modules/events/services/event.service";
-import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 import { TeamManagementView } from "@/components/team/team-management-view";
 
 export default async function WorkspaceTeamPage({

@@ -2,7 +2,7 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { getSessionToken } from "@/lib/auth/session";
 import { AuthService } from "@/lib/services/auth.service";
-import { WeddingMemberRepository } from "@/modules/weddings/repositories/wedding-member.repository";
+import { WeddingService } from "@/modules/weddings/services/wedding.service";
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 
 export default async function WeddingWorkspaceLayout({
@@ -26,9 +26,9 @@ export default async function WeddingWorkspaceLayout({
 
   let role = "ORGANISER";
   try {
-    const member = await WeddingMemberRepository.findMember(weddingId, session.user.id);
-    if (member) {
-      role = member.role;
+    const res = await WeddingService.getWeddingById(weddingId, session.user.id);
+    if (res.success && res.data?.member) {
+      role = res.data.member.role;
     }
   } catch (err) {
     console.error("Error fetching member role for layout:", err);
