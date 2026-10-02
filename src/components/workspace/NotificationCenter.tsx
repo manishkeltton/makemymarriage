@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { NotificationDTO } from "@/modules/notifications/services/notification.service";
 
 interface NotificationCenterProps {
@@ -8,6 +9,7 @@ interface NotificationCenterProps {
 }
 
 export function NotificationCenter({ weddingId }: NotificationCenterProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -96,6 +98,41 @@ export function NotificationCenter({ weddingId }: NotificationCenterProps) {
     }
   };
 
+  const handleNotificationClick = (item: NotificationDTO) => {
+    if (!item.readAt) {
+      handleMarkRead(item.id);
+    }
+
+    let targetUrl = item.link;
+    if (!targetUrl && item.entityId) {
+      const wId = weddingId || item.weddingId;
+      if (item.entityType === "TASK" || item.type.startsWith("TASK_")) {
+        targetUrl = `/workspace/${wId}/tasks?taskId=${item.entityId}`;
+      } else if (
+        item.entityType === "EXPENSE" ||
+        item.entityType === "PAYMENT" ||
+        item.type.startsWith("PAYMENT_")
+      ) {
+        targetUrl = `/workspace/${wId}/expenses?expenseId=${item.entityId}`;
+      } else if (
+        item.entityType === "GUEST" ||
+        item.type.startsWith("RSVP_")
+      ) {
+        targetUrl = `/workspace/${wId}/guests?householdId=${item.entityId}`;
+      } else if (
+        item.entityType === "MEDIA" ||
+        item.type.startsWith("GUEST_UPLOAD")
+      ) {
+        targetUrl = `/workspace/${wId}/gallery?mediaId=${item.entityId}`;
+      }
+    }
+
+    if (targetUrl) {
+      setIsOpen(false);
+      router.push(targetUrl);
+    }
+  };
+
   return (
     <div className="relative flex items-center" ref={dropdownRef}>
       <button
@@ -139,7 +176,7 @@ export function NotificationCenter({ weddingId }: NotificationCenterProps) {
           {/* List */}
           <div className="overflow-y-auto flex-1 divide-y divide-surface-container-high/40">
             {notifications.length === 0 ? (
-              <div className="p-8 text-center text-xs text-on-surface-variant space-y-1">
+              <div className="p-8 text-center text-[12px] text-on-surface-variant space-y-1">
                 <span className="material-symbols-outlined text-[24px] opacity-40">notifications_off</span>
                 <p>No notifications yet</p>
               </div>
@@ -147,17 +184,21 @@ export function NotificationCenter({ weddingId }: NotificationCenterProps) {
               notifications.map((item) => (
                 <div
                   key={item.id}
-                  onClick={() => !item.readAt && handleMarkRead(item.id)}
+                  onClick={() => handleNotificationClick(item)}
                   className={`p-3 px-4 hover:bg-surface-container-low/50 transition-colors flex items-start gap-3 cursor-pointer ${
                     !item.readAt ? "bg-primary-fixed/10" : ""
                   }`}
                 >
                   <div className="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center shrink-0 text-primary-container mt-0.5">
                     <span className="material-symbols-outlined text-[16px]">
-                      {item.type === "TASK_ASSIGNED"
-                        ? "assignment_ind"
-                        : item.type === "TASK_COMMENT"
-                        ? "chat_bubble"
+                      {item.type.startsWith("TASK_")
+                        ? "assignment"
+                        : item.type.startsWith("PAYMENT_")
+                        ? "payments"
+                        : item.type.startsWith("RSVP_") || item.entityType === "GUEST"
+                        ? "mark_email_read"
+                        : item.type.startsWith("GUEST_UPLOAD") || item.entityType === "MEDIA"
+                        ? "photo_camera"
                         : "notifications"}
                     </span>
                   </div>

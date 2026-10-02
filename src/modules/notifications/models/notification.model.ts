@@ -8,6 +8,8 @@ export interface INotification extends Document {
   message: string;
   entityType?: string;
   entityId?: Types.ObjectId;
+  link?: string;
+  dedupKey?: string;
   readAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +50,16 @@ const NotificationSchema = new Schema<INotification>(
     },
     entityId: {
       type: Schema.Types.ObjectId,
+    },
+    link: {
+      type: String,
+      trim: true,
+    },
+    dedupKey: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
     },
     readAt: {
       type: Date,

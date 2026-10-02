@@ -156,6 +156,18 @@ export class MediaRepository {
     return MediaModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
   }
 
+  static async updateStatusFromPendingUpload(
+    id: string | Types.ObjectId,
+    newStatus: MediaStatus
+  ): Promise<IMedia | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    return MediaModel.findOneAndUpdate(
+      { _id: id, status: "PENDING_UPLOAD" },
+      { $set: { status: newStatus } },
+      { new: true }
+    ).exec();
+  }
+
   static async delete(id: string | Types.ObjectId): Promise<boolean> {
     if (!Types.ObjectId.isValid(id)) return false;
     const res = await MediaModel.findByIdAndDelete(id).exec();

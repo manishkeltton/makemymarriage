@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, use } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlbumDTO, MediaDTO } from "@/modules/media/dto/media.dto";
 import { uploadToCloudinary, validateUploadFile } from "@/lib/uploads/cloudinary-upload";
 
@@ -10,12 +11,16 @@ interface PageProps {
 
 export default function GalleryPage({ params }: PageProps) {
   const { weddingId } = use(params);
+  const searchParams = useSearchParams();
+  const mediaIdParam = searchParams.get("mediaId");
+  const tabParam = searchParams.get("tab");
 
   const [activeTab, setActiveTab] = useState<"photos" | "albums" | "moderation">("photos");
   const [albums, setAlbums] = useState<AlbumDTO[]>([]);
   const [mediaList, setMediaList] = useState<MediaDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string>("");
+  const highlightedMediaId = mediaIdParam || null;
 
   // Modals state
   const [showAlbumModal, setShowAlbumModal] = useState(false);
@@ -86,6 +91,59 @@ export default function GalleryPage({ params }: PageProps) {
       ignore = true;
     };
   }, [weddingId]);
+
+  const [prevTabParam, setPrevTabParam] = useState(tabParam);
+  if (tabParam !== prevTabParam) {
+    setPrevTabParam(tabParam);
+    if (tabParam === "moderation" || tabParam === "albums" || tabParam === "photos") {
+      setActiveTab(tabParam);
+    }
+  }
+
+  // Handle URL contract: mediaId search parameter
+  useEffect(() => {
+    if (!mediaIdParam) {
+      return;
+    }
+
+    let ignore = false;
+    const resolveTargetMedia = async () => {
+      const existing = mediaList.find((m) => m.id === mediaIdParam);
+      if (existing) {
+        if (existing.status === "PENDING_APPROVAL") {
+          setActiveTab("moderation");
+        } else {
+          setActiveTab("photos");
+        }
+        return;
+      }
+
+      // Fetch target media item if missing from currently loaded list
+      try {
+        const res = await fetch(`/api/v1/weddings/${weddingId}/media/${mediaIdParam}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data && !ignore) {
+            const target: MediaDTO = json.data;
+            setMediaList((prev) => (prev.some((m) => m.id === target.id) ? prev : [target, ...prev]));
+            if (target.status === "PENDING_APPROVAL") {
+              setActiveTab("moderation");
+            } else {
+              setActiveTab("photos");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error resolving target media:", err);
+      }
+    };
+
+    void resolveTargetMedia();
+
+    return () => {
+      ignore = true;
+    };
+  }, [weddingId, mediaIdParam, tabParam, mediaList]);
 
   const handleSaveAlbum = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -353,7 +411,12 @@ export default function GalleryPage({ params }: PageProps) {
             {filteredPhotos.map((item) => (
               <div
                 key={item.id}
-                className="group relative bg-surface-container-lowest rounded-xl overflow-hidden border border-surface-container-high shadow-2xs hover:shadow-md transition-all aspect-square flex items-center justify-center bg-stone-900/5 cursor-pointer"
+                id={`media-item-${item.id}`}
+                className={`group relative bg-surface-container-lowest rounded-xl overflow-hidden border shadow-2xs hover:shadow-md transition-all aspect-square flex items-center justify-center bg-stone-900/5 cursor-pointer ${
+                  highlightedMediaId === item.id
+                    ? "ring-4 ring-primary border-primary animate-pulse"
+                    : "border-surface-container-high"
+                }`}
               >
                 {item.mediaType === "IMAGE" && item.accessUrl ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
@@ -467,7 +530,12 @@ export default function GalleryPage({ params }: PageProps) {
             {pendingMedia.map((item) => (
               <div
                 key={item.id}
-                className="bg-surface-container-lowest rounded-2xl p-space-md border border-amber-200 bg-amber-50/20 shadow-2xs space-y-3"
+                id={`media-item-${item.id}`}
+                className={`bg-surface-container-lowest rounded-2xl p-space-md border shadow-2xs space-y-3 transition-all ${
+                  highlightedMediaId === item.id
+                    ? "ring-4 ring-amber-500 border-amber-500 bg-amber-100/40 animate-pulse"
+                    : "border-amber-200 bg-amber-50/20"
+                }`}
               >
                 <div className="aspect-video bg-stone-900/10 rounded-xl overflow-hidden flex items-center justify-center">
                   {item.mediaType === "IMAGE" && item.accessUrl ? (

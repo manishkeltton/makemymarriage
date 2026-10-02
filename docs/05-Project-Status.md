@@ -29,6 +29,9 @@ This file tracks major implementation milestones. Add new features as work begin
 | V1 Workspace Search               | Completed | 2026-10-02 |
 | V1 Search Access Restrictions     | Completed | 2026-10-02 |
 | V1 Search Result Navigation       | Completed | 2026-10-02 |
+| V1 In-App Task & Payment Reminders| Completed | 2026-10-02 |
+| V1 RSVP Notifications             | Completed | 2026-10-03 |
+| V1 Guest-Upload Notifications     | Completed | 2026-10-02 |
 | Pending Features & Future Roadmap     | Tracked   | 2026-09-26   |
 
 ## 1. Project scaffold
@@ -386,6 +389,65 @@ This file tracks major implementation milestones. Add new features as work begin
   - `npx vitest run`: **PASS** (25 test files, 225 passed, 100% pass rate).
   - `npm run build`: **PASS** (Next.js 16.3.5 Turbopack production build verified, dynamic `/api/v1/weddings/[weddingId]/documents/[documentId]` route generated).
 
+## 23. V1 In-App Task & Payment Reminders
+
+- **Status:** Completed
+- **Last updated:** 2026-10-03
+- **Implemented:** Implemented the V1 In-App Task & Payment Reminders milestone matching specification `docs/in-app-reminders.md` and approved Stitch UI designs:
+  - **Reminder Business Rules:** Supported `TASK_REMINDER_CUSTOM`, `TASK_DUE_SOON`, `TASK_OVERDUE`, `PAYMENT_DUE_SOON`, and `PAYMENT_OVERDUE`. Suppressed reminders for completed tasks (`status = COMPLETED`), paid payment installments (`status = PAID`), and rejected parent expenses (`approvalStatus = REJECTED`). Paying one installment does not suppress reminders for remaining unpaid installments.
+  - **Approved P0/P1 Code Review Finding Fixes (2026-10-02):**
+    - `REM-001`: Implemented batch iteration chunking (50 weddings per chunk) in `ReminderSchedulerService.processReminders` to process all active weddings in the database.
+    - `REM-002`: Removed `NODE_ENV === "production"` check in `POST /api/v1/cron/reminders` so authorization secret validation is uniformly enforced across all environments.
+    - `REM-003`: Optimized worker execution with in-memory `memberMap` and bulk pending payment queries (`ExpensePaymentModel.find({ weddingId, status: "PENDING" })`), eliminating N+1 database query cascades per wedding.
+    - `REM-004`: Enhanced `getUserNotifications` to batch-fetch `ExpensePaymentModel` documents and omit past notifications for payment installments with status `"PAID"`.
+    - `REM-005`: Added `task.assignedTo?.toString() === userId` check in `getUserNotifications` to automatically omit notifications for tasks reassigned away to another member.
+  - **Documentation & Review Reports:** Created `docs/in-app-reminders.md` specification, `docs/reviews/in-app-reminders-review.md` review report, `docs/qa/in-app-reminders-manual-qa.md` manual QA report, `docs/qa/in-app-reminders-final-check.md` final readiness check report, and unit test suite in `src/__tests__/in-app-reminders.test.ts`.
+  - **Scope Boundary:** Completion applies strictly to background scheduling of in-app task/payment deadline triggers (`TASK_REMINDER_CUSTOM`, `TASK_DUE_SOON`, `TASK_OVERDUE`, `PAYMENT_DUE_SOON`, `PAYMENT_OVERDUE`) and actionable in-app notifications. External notification delivery channels (email/SMS) remain separate pending roadmap features.
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint`: **PASS** (0 errors, 0 warnings with `--max-warnings=0`).
+  - `npx tsc --noEmit`: **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (26 test files, 232 passed, 100% pass rate).
+  - `npm run build`: **PASS** (Next.js 16.3.5 Turbopack production build verified, `/api/v1/cron/reminders` route generated).
+
+## 24. V1 RSVP Notifications
+
+- **Status:** Completed
+- **Last updated:** 2026-10-03
+- **Implemented:** Implemented V1 RSVP Notifications matching specification `docs/rsvp-notifications.md` and approved Stitch UI designs:
+  - **Triggers:** Supported public guest RSVP submissions (`POST /api/v1/public/guest-access/[token]/rsvp`) and organiser manual RSVP updates (`PATCH /api/v1/weddings/[weddingId]/guests/[householdId]`).
+  - **State Comparison & Deduplication:** Compared normalized status and `attendingCount` against persisted previous state. Ignored non-RSVP household updates and `respondedAt`-only changes. Generates durable deduplication key `${userId}_RSVP_${householdId}_${transitionKey}` where `transitionKey = ${oldStatus}_${oldCount}_TO_${newStatus}_${newCount}_AT_${respondedAtMs}`. Properly allows later `A → B → A` transition sequences with distinct timestamps.
+  - **Server-Side Recipient Resolution:** Queries active workspace members with `guests` permission or `ADMIN` role server-side. Public request bodies cannot specify recipients or claim wedding ownership.
+  - **Public Token & Invitation Privacy:** Guarantees raw tokens and invitation URLs are never placed in notification titles, messages, links, or deduplication keys. Public responses expose `PublicGuestAccessDTO` only.
+  - **Stale Notification Policy:** Batch lookup on `GuestHouseholdModel` in `NotificationService.getUserNotifications` automatically filters out stale RSVP notifications for deleted households or users with revoked guest permissions.
+  - **Deep Links & UI Integration:** Links directly to `/workspace/[weddingId]/guests?householdId=[householdId]`, automatically opening `GuestDetailDrawer`. `NotificationCenter` UI component renders `mark_email_read` icon for RSVP notifications.
+  - **Approved Code Review Finding Fixes (2026-10-03):**
+    - `RSN-001`: Passed `actorUserId` to `RsvpNotificationService.notifyRsvpChange` in `GuestService.updateHousehold` and filtered `actorUserId` out from `eligibleRecipients`, preventing acting organisers from receiving self-notifications for their own manual edits in the workspace.
+    - `RSN-002`: Updated icon lookup in `NotificationCenter.tsx` to render the approved `mark_email_read` Material icon for `RSVP_RESPONSE` and `GUEST` notification items.
+  - **Verification Suite Outcomes:**
+    - `npm run lint`: **PASS** (0 errors, 0 warnings with `--max-warnings=0`).
+    - `npx tsc --noEmit`: **PASS** (0 errors).
+    - `npx vitest run`: **PASS** (27 test files, 238 passed, 100% pass rate).
+    - `npm run build`: **PASS** (Next.js Turbopack production build verified).
+
+## 25. V1 Guest-Upload Notifications
+
+- **Status:** Completed
+- **Last updated:** 2026-10-03
+- **Implemented:** Implemented V1 Guest-Upload Notifications matching specification `docs/guest-upload-notifications.md` and approved Stitch UI designs:
+  - **Triggers & State Guard:** Notifications trigger ONLY when guest-uploaded media passes provider verification (`StorageService.verifyAndSeal`) and transitions atomically from `PENDING_UPLOAD` to `PENDING_APPROVAL`. Member uploads transition directly to `APPROVED` and emit 0 notifications.
+  - **Durable Deduplication & Concurrency Safety:** Idempotent completion implementation handles duplicate or concurrent requests without state regression or duplicate notification dispatch (`dedupKey = ${recipientUserId}_GUEST_UPLOAD_${mediaId}`).
+  - **Server-Side Recipient Resolution & Identity:** Resolves active workspace members with `gallery` permission or `ADMIN` role server-side. Trusted uploader identity is looked up from `GuestHouseholdRepository`. Public callers cannot specify recipients or link destinations.
+  - **Secret & Token Privacy:** Keeps raw tokens, storage credentials, object keys, and signed URLs out of notifications, logs, or delivery payloads. Public responses expose `PublicMediaDTO` only.
+  - **Stale Notification Policy:** Extended `NotificationService.getUserNotifications` to batch-lookup `MediaModel` documents and filter out notifications for deleted media or members with revoked `gallery` permissions.
+  - **Gallery URL Contract & Deep Linking:** `/workspace/[weddingId]/gallery?mediaId=[mediaId]` auto-selects the `moderation` queue tab (or `photos` tab), reveals/highlights the target item with an amber pulse ring, and fetches the item if absent from currently loaded data.
+  - **Code Review Approval (2026-10-03):** Confirmed zero P0/P1 findings in `docs/reviews/guest-upload-notifications-review.md`. No implementation changes required.
+  - **Verification Suite Outcomes:**
+    - `npm run lint`: **PASS** (0 errors, 0 warnings with `--max-warnings=0`).
+    - `npx tsc --noEmit`: **PASS** (0 errors).
+    - `npx vitest run`: **PASS** (28 test files, 242 passed, 100% pass rate).
+    - `npm run build`: **PASS** (Next.js Turbopack production build verified, `/api/v1/weddings/[weddingId]/media/[mediaId]` GET route generated).
+
 ## Future entries
 
 For each major feature, add a numbered entry with its name, status (`In progress`, `Blocked`, or `Completed`), last updated date, implemented scope, key files where useful, and remaining work or known limitations. Keep the overview and document's last updated date in sync with the entries.
+

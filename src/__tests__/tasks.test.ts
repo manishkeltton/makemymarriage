@@ -500,6 +500,8 @@ describe("Planning Engine — Task, Checklist, Document & Notification Tests", (
 
   describe("In-App Notifications Service", () => {
     it("should fetch user notifications and mark them read", async () => {
+      vi.spyOn(TeamMemberRepository, "findByUserIdAndWeddingId").mockResolvedValue(fakeAdminMemberDoc as unknown as IWeddingMember);
+
       const mockNotificationDoc = {
         _id: new Types.ObjectId(),
         weddingId: new Types.ObjectId(fakeWeddingId),

@@ -8,6 +8,7 @@ import { UploadIntentInput, GuestUploadIntentInput, CompleteUploadInput } from "
 import { StorageService } from "@/modules/documents/services/storage.service";
 import { AppError } from "@/shared/errors/app-error";
 import { EntitlementService } from "@/modules/billing/services/entitlement.service";
+import { GuestUploadNotificationService } from "./guest-upload-notification.service";
 
 export type MediaUploader = { type: UploadedByType; userId?: string; householdId?: string };
 
@@ -87,7 +88,23 @@ export class MediaService {
     }
 
     if (media.status !== "PENDING_UPLOAD") {
-      throw new AppError("CONFLICT", "Upload is not in PENDING_UPLOAD state", 409);
+      // Idempotent: return existing record if already completed
+      const isOwner =
+        uploader.type === media.uploadedByType &&
+        (uploader.type === "GUEST"
+          ? Boolean(uploader.householdId && media.uploadedByHouseholdId?.toString() === uploader.householdId)
+          : Boolean(uploader.userId && media.uploadedByUserId?.toString() === uploader.userId));
+      if (!isOwner) {
+        throw new AppError("FORBIDDEN", "Only the original uploader can complete this upload", 403);
+      }
+
+      let accessUrl: string | undefined;
+      try {
+        accessUrl = await StorageService.accessUrl(media.objectKey);
+      } catch {
+        // Ignore signed URL error if storage unavailable
+      }
+      return toMediaDTO(media, accessUrl);
     }
 
     const isOwner =
@@ -118,12 +135,32 @@ export class MediaService {
     // Guest uploads go to PENDING_APPROVAL; Member uploads go to APPROVED
     const newStatus: MediaStatus = media.uploadedByType === "GUEST" ? "PENDING_APPROVAL" : "APPROVED";
 
-    const updated = await MediaRepository.update(mediaId, {
-      status: newStatus,
-    });
+    const updated = await MediaRepository.updateStatusFromPendingUpload(mediaId, newStatus);
 
     if (!updated) {
+      // Re-fetch media if concurrent update occurred
+      const fresh = await MediaRepository.findById(mediaId);
+      if (fresh) {
+        let accessUrl: string | undefined;
+        try {
+          accessUrl = await StorageService.accessUrl(fresh.objectKey);
+        } catch {
+          // ignore
+        }
+        return toMediaDTO(fresh, accessUrl);
+      }
       throw new AppError("INTERNAL_ERROR", "Failed to update media status", 500);
+    }
+
+    // Trigger in-app notifications for guest uploads pending moderation
+    if (media.uploadedByType === "GUEST" && newStatus === "PENDING_APPROVAL") {
+      void GuestUploadNotificationService.notifyGuestUpload({
+        weddingId,
+        mediaId: updated._id.toString(),
+        originalFilename: updated.originalFilename,
+        mediaType: updated.mediaType,
+        uploadedByHouseholdId: updated.uploadedByHouseholdId?.toString(),
+      }).catch((err) => console.error("Error notifying guest upload:", err));
     }
 
     let accessUrl: string | undefined;
@@ -155,6 +192,22 @@ export class MediaService {
     }
 
     return StorageService.accessUrl(media.objectKey);
+  }
+
+  static async getMediaById(weddingId: string, mediaId: string): Promise<MediaDTO> {
+    const media = await MediaRepository.findById(mediaId);
+    if (!media || media.weddingId.toString() !== weddingId) {
+      throw new AppError("RESOURCE_NOT_FOUND", "Media item not found", 404);
+    }
+
+    let accessUrl: string | undefined;
+    try {
+      accessUrl = await StorageService.accessUrl(media.objectKey);
+    } catch {
+      // ignore
+    }
+
+    return toMediaDTO(media, accessUrl);
   }
 
   static async listMedia(weddingId: string, filters?: ListMediaFilters): Promise<MediaDTO[]> {

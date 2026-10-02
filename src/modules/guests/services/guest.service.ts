@@ -8,6 +8,7 @@ import { CreateGuestHouseholdInput, UpdateGuestHouseholdInput, PublicRsvpInput }
 import { TeamAuthorization } from "@/modules/team/authorization/team.auth";
 import { WeddingRepository } from "@/modules/weddings/repositories/wedding.repository";
 import { EntitlementService } from "@/modules/billing/services/entitlement.service";
+import { RsvpNotificationService } from "./rsvp-notification.service";
 
 function hashToken(rawToken: string): string {
   return crypto.createHash("sha256").update(rawToken).digest("hex");
@@ -217,6 +218,24 @@ export class GuestService {
         householdId,
         updateData,
       });
+
+      if (updated && (existing.rsvp.status !== updated.rsvp.status || existing.rsvp.attendingCount !== updated.rsvp.attendingCount)) {
+        void RsvpNotificationService.notifyRsvpChange({
+          weddingId,
+          householdId,
+          householdName: updated.householdName,
+          oldRsvp: {
+            status: existing.rsvp.status,
+            attendingCount: existing.rsvp.attendingCount,
+          },
+          newRsvp: {
+            status: updated.rsvp.status,
+            attendingCount: updated.rsvp.attendingCount,
+            respondedAt: updated.rsvp.respondedAt,
+          },
+          actorUserId: userId,
+        }).catch((err) => console.error("Error notifying RSVP change:", err));
+      }
 
       return { success: true, data: toGuestHouseholdDTO(updated!) };
     } catch (err: unknown) {
@@ -483,6 +502,23 @@ export class GuestService {
           },
         },
       });
+
+      if (updated && (household.rsvp.status !== updated.rsvp.status || household.rsvp.attendingCount !== updated.rsvp.attendingCount)) {
+        void RsvpNotificationService.notifyRsvpChange({
+          weddingId: tokenDoc.weddingId.toString(),
+          householdId: tokenDoc.householdId.toString(),
+          householdName: updated.householdName,
+          oldRsvp: {
+            status: household.rsvp.status,
+            attendingCount: household.rsvp.attendingCount,
+          },
+          newRsvp: {
+            status: updated.rsvp.status,
+            attendingCount: updated.rsvp.attendingCount,
+            respondedAt: updated.rsvp.respondedAt,
+          },
+        }).catch((err) => console.error("Error notifying RSVP change:", err));
+      }
 
       const wedding = await WeddingRepository.findById(tokenDoc.weddingId.toString());
 

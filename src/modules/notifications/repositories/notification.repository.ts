@@ -9,13 +9,16 @@ export interface CreateNotificationParams {
   message: string;
   entityType?: string;
   entityId?: Types.ObjectId;
+  link?: string;
+  dedupKey?: string;
 }
 
 export class NotificationRepository {
   /**
-   * Creates an in-app notification.
+   * Creates an in-app notification atomically.
+   * Returns null if a notification with the same dedupKey already exists.
    */
-  static async create(params: CreateNotificationParams): Promise<INotification> {
+  static async create(params: CreateNotificationParams): Promise<INotification | null> {
     const notification = new NotificationModel({
       weddingId: params.weddingId,
       userId: params.userId,
@@ -24,9 +27,18 @@ export class NotificationRepository {
       message: params.message,
       entityType: params.entityType,
       entityId: params.entityId,
+      link: params.link,
+      dedupKey: params.dedupKey,
     });
 
-    return await notification.save();
+    try {
+      return await notification.save();
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && "code" in err && (err as { code?: number }).code === 11000) {
+        return null;
+      }
+      throw err;
+    }
   }
 
   /**
