@@ -49,22 +49,28 @@ export class ExpenseService {
     }
 
     try {
-      const { expenses, nextCursor, hasMore, totalCount } = await ExpenseRepository.findExpensesByFilters({
+      const member = await TeamAuthorization.requireWeddingMembership(weddingId, userId);
+
+      const { expenses, nextCursor, hasMore } = await ExpenseRepository.findExpensesByFilters({
         weddingId,
         ...filters,
       });
 
+      const accessibleExpenses = expenses.filter((e) =>
+        member ? TeamAuthorization.canAccessExpense(member, e) : true
+      );
+
       // Gather reference IDs for bulk enrichment
-      const eventIds = Array.from(new Set(expenses.map((e) => e.eventId?.toString()).filter(Boolean) as string[]));
-      const vendorIds = Array.from(new Set(expenses.map((e) => e.vendorId?.toString()).filter(Boolean) as string[]));
+      const eventIds = Array.from(new Set(accessibleExpenses.map((e) => e.eventId?.toString()).filter(Boolean) as string[]));
+      const vendorIds = Array.from(new Set(accessibleExpenses.map((e) => e.vendorId?.toString()).filter(Boolean) as string[]));
       const userIds = Array.from(
         new Set(
-          expenses
+          accessibleExpenses
             .flatMap((e) => [e.createdBy.toString(), e.approval?.decidedBy?.toString()])
             .filter(Boolean) as string[]
         )
       );
-      const expenseIds = expenses.map((e) => e._id.toString());
+      const expenseIds = accessibleExpenses.map((e) => e._id.toString());
 
       const [events, vendors, users, payments, docCounts] = await Promise.all([
         eventIds.length ? EventRepository.findEventsByWeddingId({ weddingId }) : Promise.resolve([]),
@@ -102,7 +108,7 @@ export class ExpenseService {
         }
       }
 
-      const dtos = expenses.map((e, idx) => {
+      const dtos = accessibleExpenses.map((e, idx) => {
         const eId = e._id.toString();
         const evId = e.eventId?.toString();
         const vId = e.vendorId?.toString();
@@ -119,7 +125,7 @@ export class ExpenseService {
         });
       });
 
-      return { success: true, data: dtos, nextCursor, hasMore, totalCount };
+      return { success: true, data: dtos, nextCursor, hasMore, totalCount: accessibleExpenses.length };
     } catch (err: unknown) {
       console.error("Error fetching expenses:", err);
       return { success: false, error: "Failed to fetch expenses", code: "INTERNAL_ERROR" };
@@ -142,9 +148,14 @@ export class ExpenseService {
     }
 
     try {
+      const member = await TeamAuthorization.requireWeddingMembership(weddingId, userId);
       const expense = await ExpenseRepository.findByIdAndWeddingId({ weddingId, expenseId });
       if (!expense) {
         return { success: false, error: "Expense not found", code: "NOT_FOUND" };
+      }
+
+      if (member && !TeamAuthorization.canAccessExpense(member, expense)) {
+        return { success: false, error: "Access denied: you do not have permission for this expense", code: "FORBIDDEN" };
       }
 
       let eventName: string | undefined = undefined;

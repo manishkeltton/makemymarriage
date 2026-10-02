@@ -219,12 +219,61 @@ export class DocumentService {
         relatedId,
       });
 
+      // Batch check parent access & orphan policy
+      const eventParentIds = new Set<string>();
+      const taskParentIds = new Set<string>();
+      const vendorParentIds = new Set<string>();
+      const expenseParentIds = new Set<string>();
+
+      for (const d of docs) {
+        if (d.relatedTo?.type === "EVENT" && d.relatedTo.id) {
+          eventParentIds.add(d.relatedTo.id.toString());
+        } else if (d.relatedTo?.type === "TASK" && d.relatedTo.id) {
+          taskParentIds.add(d.relatedTo.id.toString());
+        } else if (d.relatedTo?.type === "VENDOR" && d.relatedTo.id) {
+          vendorParentIds.add(d.relatedTo.id.toString());
+        } else if (d.relatedTo?.type === "EXPENSE" && d.relatedTo.id) {
+          expenseParentIds.add(d.relatedTo.id.toString());
+        }
+      }
+
+      const [canReadVendors, canReadFinance] = await Promise.all([
+        TeamAuthorization.requireWeddingPermission(weddingId, userId, "vendors"),
+        TeamAuthorization.requireWeddingPermission(weddingId, userId, "finance"),
+      ]);
+
+      const [eventsList, tasksList, vendorsList, expensesList] = await Promise.all([
+        eventParentIds.size > 0
+          ? EventRepository.findEventsByWeddingId({ weddingId })
+          : [],
+        taskParentIds.size > 0
+          ? TaskRepository.findTasksByFilters({ weddingId, limit: 10000 }).then((r) => r.tasks)
+          : [],
+        vendorParentIds.size > 0 && canReadVendors
+          ? VendorRepository.findVendorsByFilters({ weddingId, limit: 10000 }).then((r) => r.vendors)
+          : [],
+        expenseParentIds.size > 0 && canReadFinance
+          ? ExpenseRepository.findExpensesByFilters({ weddingId, limit: 10000 }).then((r) => r.expenses)
+          : [],
+      ]);
+
+      const parentMaps = {
+        events: new Map(eventsList.map((e) => [e._id.toString(), e])),
+        tasks: new Map(tasksList.map((t) => [t._id.toString(), t])),
+        vendors: new Map(vendorsList.map((v) => [v._id.toString(), v])),
+        expenses: new Map(expensesList.map((ex) => [ex._id.toString(), ex])),
+      };
+
+      const authorizedDocs = docs.filter((d) =>
+        TeamAuthorization.canAccessDocument(member, d, parentMaps)
+      );
+
       // Populate uploader names
-      const uploaderIds = Array.from(new Set(docs.map((d) => d.uploadedBy.toString())));
+      const uploaderIds = Array.from(new Set(authorizedDocs.map((d) => d.uploadedBy.toString())));
       const uploaders = await User.find({ _id: { $in: uploaderIds } });
       const uploaderMap = new Map(uploaders.map((u) => [u._id.toString(), u.name]));
 
-      const dtos = docs.map((d) =>
+      const dtos = authorizedDocs.map((d) =>
         toDocumentDTO(d, { uploaderName: uploaderMap.get(d.uploadedBy.toString()) || "Team Member" })
       );
 
@@ -232,6 +281,81 @@ export class DocumentService {
     } catch (err: unknown) {
       console.error("Error fetching documents:", err);
       return { success: false, error: "Failed to fetch documents", code: "INTERNAL_ERROR" };
+    }
+  }
+
+  /**
+   * Fetches a single document by ID with parent access & tenant authorization verification.
+   */
+  static async getDocumentById({
+    weddingId,
+    documentId,
+    userId,
+  }: {
+    weddingId: string;
+    documentId: string;
+    userId: string;
+  }): Promise<{ success: boolean; data?: DocumentDTO; error?: string; code?: string }> {
+    await connectToDatabase();
+
+    if (!Types.ObjectId.isValid(weddingId) || !Types.ObjectId.isValid(documentId) || !Types.ObjectId.isValid(userId)) {
+      return { success: false, error: "Invalid ID format", code: "INVALID_ID" };
+    }
+
+    try {
+      const member = await TeamAuthorization.requireWeddingMembership(weddingId, userId);
+      if (!member) {
+        return { success: false, error: "Access denied to wedding workspace", code: "FORBIDDEN" };
+      }
+
+      const doc = await DocumentRepository.findByIdAndWeddingId({ weddingId, documentId });
+      if (!doc) {
+        return { success: false, error: "Document not found", code: "NOT_FOUND" };
+      }
+
+      // Verify parent access & orphan policy
+      if (doc.relatedTo && doc.relatedTo.type && doc.relatedTo.id) {
+        const parentIdStr = doc.relatedTo.id.toString();
+        const parentType = doc.relatedTo.type;
+
+        let isParentAccessible = false;
+
+        if (parentType === "EVENT") {
+          const parentEvent = await EventRepository.findByIdAndWeddingId({ weddingId, eventId: parentIdStr });
+          if (parentEvent && TeamAuthorization.canAccessEventId(member, parentIdStr)) {
+            isParentAccessible = true;
+          }
+        } else if (parentType === "TASK") {
+          const parentTask = await TaskRepository.findByIdAndWeddingId({ weddingId, taskId: parentIdStr });
+          if (parentTask && TeamAuthorization.canAccessTask(member, parentTask)) {
+            isParentAccessible = true;
+          }
+        } else if (parentType === "VENDOR") {
+          const parentVendor = await VendorRepository.findByIdAndWeddingId({ weddingId, vendorId: parentIdStr });
+          if (parentVendor && TeamAuthorization.canAccessVendor(member, parentVendor)) {
+            isParentAccessible = true;
+          }
+        } else if (parentType === "EXPENSE") {
+          const parentExpense = await ExpenseRepository.findByIdAndWeddingId({ weddingId, expenseId: parentIdStr });
+          if (parentExpense && TeamAuthorization.canAccessExpense(member, parentExpense)) {
+            isParentAccessible = true;
+          }
+        }
+
+        if (!isParentAccessible) {
+          return { success: false, error: "Access denied to referenced document parent", code: "FORBIDDEN" };
+        }
+      }
+
+      const uploader = await User.findById(doc.uploadedBy);
+
+      return {
+        success: true,
+        data: toDocumentDTO(doc, { uploaderName: uploader?.name || "Team Member" }),
+      };
+    } catch (err: unknown) {
+      console.error("Error fetching document by ID:", err);
+      return { success: false, error: "Failed to fetch document", code: "INTERNAL_ERROR" };
     }
   }
 
@@ -257,6 +381,40 @@ export class DocumentService {
     const doc = await DocumentRepository.findByIdAndWeddingId({ weddingId, documentId });
     if (!doc) {
       return { success: false, error: "Document not found", code: "NOT_FOUND" };
+    }
+
+    // Verify parent access & orphan policy
+    if (doc.relatedTo && doc.relatedTo.type && doc.relatedTo.id) {
+      const parentIdStr = doc.relatedTo.id.toString();
+      const parentType = doc.relatedTo.type;
+
+      let isParentAccessible = false;
+
+      if (parentType === "EVENT") {
+        const parentEvent = await EventRepository.findByIdAndWeddingId({ weddingId, eventId: parentIdStr });
+        if (parentEvent && TeamAuthorization.canAccessEventId(member, parentIdStr)) {
+          isParentAccessible = true;
+        }
+      } else if (parentType === "TASK") {
+        const parentTask = await TaskRepository.findByIdAndWeddingId({ weddingId, taskId: parentIdStr });
+        if (parentTask && TeamAuthorization.canAccessTask(member, parentTask)) {
+          isParentAccessible = true;
+        }
+      } else if (parentType === "VENDOR") {
+        const parentVendor = await VendorRepository.findByIdAndWeddingId({ weddingId, vendorId: parentIdStr });
+        if (parentVendor && TeamAuthorization.canAccessVendor(member, parentVendor)) {
+          isParentAccessible = true;
+        }
+      } else if (parentType === "EXPENSE") {
+        const parentExpense = await ExpenseRepository.findByIdAndWeddingId({ weddingId, expenseId: parentIdStr });
+        if (parentExpense && TeamAuthorization.canAccessExpense(member, parentExpense)) {
+          isParentAccessible = true;
+        }
+      }
+
+      if (!isParentAccessible) {
+        return { success: false, error: "Access denied to referenced document parent", code: "FORBIDDEN" };
+      }
     }
 
     if (!doc.fileKey || (!doc.fileKey.startsWith("cloudinary:") && !process.env.R2_BUCKET_NAME)) {

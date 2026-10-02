@@ -29,6 +29,8 @@ vi.mock("../modules/weddings/repositories/wedding-member.repository", () => ({
 vi.mock("../modules/team/authorization/team.auth", () => ({
   TeamAuthorization: {
     requireEventAccess: vi.fn().mockResolvedValue(true),
+    requireWeddingMembership: vi.fn().mockImplementation((wId, uId) => WeddingMemberRepository.findMember(wId, uId)),
+    canAccessEventId: vi.fn().mockReturnValue(true),
   },
 }));
 

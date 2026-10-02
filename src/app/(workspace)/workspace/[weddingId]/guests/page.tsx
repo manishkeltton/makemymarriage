@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, use } from "react";
+import React, { useState, useEffect, useCallback, use, Suspense, useRef } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { GuestHouseholdDTO, GuestStatsSummaryDTO } from "@/modules/guests/dto/guest.dto";
 import { GuestHouseholdFormModal } from "@/components/guests/GuestHouseholdFormModal";
 import { GuestAccessLinkModal } from "@/components/guests/GuestAccessLinkModal";
@@ -12,6 +13,25 @@ interface GuestsPageProps {
 
 export default function GuestsPage({ params }: GuestsPageProps) {
   const { weddingId } = use(params);
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-on-surface-variant flex flex-col items-center justify-center gap-2">
+          <span className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <p>Loading guest list...</p>
+        </div>
+      }
+    >
+      <GuestsContent weddingId={weddingId} />
+    </Suspense>
+  );
+}
+
+function GuestsContent({ weddingId }: { weddingId: string }) {
+  const searchParams = useSearchParams();
+  const urlHouseholdId = searchParams.get("householdId") || "";
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [households, setHouseholds] = useState<GuestHouseholdDTO[]>([]);
   const [stats, setStats] = useState<GuestStatsSummaryDTO | null>(null);
@@ -32,6 +52,13 @@ export default function GuestsPage({ params }: GuestsPageProps) {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedHouseholdForDrawer, setSelectedHouseholdForDrawer] = useState<GuestHouseholdDTO | null>(null);
+  // State for household fetched by API when urlHouseholdId not in the loaded list
+  const [urlFetchedHousehold, setUrlFetchedHousehold] = useState<GuestHouseholdDTO | null>(null);
+  const resolvedUrlHouseholdRef = useRef("");
+  // Derived: the household to open in the drawer when navigating with householdId param
+  const urlTargetHousehold = urlHouseholdId
+    ? (households.find((h) => h.id === urlHouseholdId) ?? (urlFetchedHousehold?.id === urlHouseholdId ? urlFetchedHousehold : null))
+    : null;
 
   const fetchWorkspaceGuestData = useCallback(async () => {
     try {
@@ -71,6 +98,36 @@ export default function GuestsPage({ params }: GuestsPageProps) {
       isMounted = false;
     };
   }, [fetchWorkspaceGuestData]);
+
+  // URL-driven drawer: fetch household by API when urlHouseholdId not in loaded list
+  useEffect(() => {
+    if (!urlHouseholdId || loading || resolvedUrlHouseholdRef.current === urlHouseholdId) return;
+    resolvedUrlHouseholdRef.current = urlHouseholdId;
+    const found = households.find((h) => h.id === urlHouseholdId);
+    if (found) return; // urlTargetHousehold derives from households list
+    const controller = new AbortController();
+    fetch(`/api/v1/weddings/${weddingId}/guests/${urlHouseholdId}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((data: { success: boolean; data?: GuestHouseholdDTO }) => {
+        if (data.success && data.data) setUrlFetchedHousehold(data.data);
+      })
+      .catch(() => {/* 403 / 404 – silently skip */});
+    return () => controller.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlHouseholdId, loading, weddingId]);
+
+  const handleCloseDrawer = useCallback(() => {
+    setIsDrawerOpen(false);
+    setSelectedHouseholdForDrawer(null);
+    setUrlFetchedHousehold(null);
+    resolvedUrlHouseholdRef.current = "";
+    if (urlHouseholdId) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("householdId");
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : pathname, { scroll: false });
+    }
+  }, [urlHouseholdId, searchParams, router, pathname]);
 
   const handleCreateHousehold = () => {
     setEditingHousehold(null);
@@ -388,13 +445,13 @@ export default function GuestsPage({ params }: GuestsPageProps) {
       />
 
       <GuestDetailDrawer
-        isOpen={isDrawerOpen}
+        isOpen={isDrawerOpen || Boolean(urlTargetHousehold)}
         weddingId={weddingId}
-        household={selectedHouseholdForDrawer}
-        onClose={() => setIsDrawerOpen(false)}
+        household={selectedHouseholdForDrawer ?? urlTargetHousehold}
+        onClose={handleCloseDrawer}
         onHouseholdUpdated={fetchWorkspaceGuestData}
         onOpenAccessLinkModal={(h) => {
-          setIsDrawerOpen(false);
+          handleCloseDrawer();
           handleOpenLinkModal(h);
         }}
       />

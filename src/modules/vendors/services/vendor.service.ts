@@ -45,46 +45,65 @@ export class VendorService {
     }
 
     try {
-      const { vendors, nextCursor, hasMore, totalCount } = await VendorRepository.findVendorsByFilters({
+      const member = await TeamAuthorization.requireWeddingMembership(weddingId, userId);
+      const canReadFinance = await TeamAuthorization.requireWeddingPermission(weddingId, userId, "finance");
+      const isCeremonyRestricted = Boolean(member && member.role !== "ADMIN" && !member.eventScope?.allEvents);
+      const allowedEventSet = new Set(
+        (member?.eventScope?.eventIds || []).map((id) => id.toString())
+      );
+
+      const { vendors, nextCursor, hasMore } = await VendorRepository.findVendorsByFilters({
         weddingId,
         ...filters,
       });
+
+      // Filter vendors by ceremony scope if restricted
+      const accessibleVendors = vendors.filter((v) =>
+        member ? TeamAuthorization.canAccessVendor(member, v) : true
+      );
 
       // Gather event & financial data for enrichment
       const allEvents = await EventRepository.findEventsByWeddingId({ weddingId });
       const eventMap = new Map(allEvents.map((e) => [e._id.toString(), e.name]));
 
-      // Gather expense and payment totals per vendor (unpaginated for accurate metrics)
-      const [expenses, payments] = await Promise.all([
-        ExpenseRepository.findExpensesByFilters({ weddingId, limit: 10000 }),
-        ExpensePaymentRepository.findPaymentsByFilters({ weddingId, status: "PAID", limit: 10000 }),
-      ]);
-
-      const paidByExpenseId = new Map<string, number>();
-      for (const p of payments.payments) {
-        const expId = p.expenseId.toString();
-        paidByExpenseId.set(expId, (paidByExpenseId.get(expId) || 0) + p.amountPaise);
-      }
-
+      // Gather expense and payment totals per vendor (only if user has finance permission)
       const vendorExpensesMap = new Map<string, number>();
       const vendorPaidMap = new Map<string, number>();
 
-      for (const exp of expenses.expenses) {
-        if (exp.vendorId) {
-          const vId = exp.vendorId.toString();
-          if (exp.approvalStatus !== "REJECTED") {
-            vendorExpensesMap.set(vId, (vendorExpensesMap.get(vId) || 0) + exp.totalAmountPaise);
-            const paidForExp = paidByExpenseId.get(exp._id.toString()) || 0;
-            vendorPaidMap.set(vId, (vendorPaidMap.get(vId) || 0) + paidForExp);
+      if (canReadFinance) {
+        const [expenses, payments] = await Promise.all([
+          ExpenseRepository.findExpensesByFilters({ weddingId, limit: 10000 }),
+          ExpensePaymentRepository.findPaymentsByFilters({ weddingId, status: "PAID", limit: 10000 }),
+        ]);
+
+        const accessibleExpenses = expenses.expenses.filter((exp) =>
+          member ? TeamAuthorization.canAccessExpense(member, exp) : true
+        );
+
+        const paidByExpenseId = new Map<string, number>();
+        for (const p of payments.payments) {
+          const expId = p.expenseId.toString();
+          paidByExpenseId.set(expId, (paidByExpenseId.get(expId) || 0) + p.amountPaise);
+        }
+
+        for (const exp of accessibleExpenses) {
+          if (exp.vendorId) {
+            const vId = exp.vendorId.toString();
+            if (exp.approvalStatus !== "REJECTED") {
+              vendorExpensesMap.set(vId, (vendorExpensesMap.get(vId) || 0) + exp.totalAmountPaise);
+              const paidForExp = paidByExpenseId.get(exp._id.toString()) || 0;
+              vendorPaidMap.set(vId, (vendorPaidMap.get(vId) || 0) + paidForExp);
+            }
           }
         }
       }
 
-      const dtos = vendors.map((v) => {
+      const dtos = accessibleVendors.map((v) => {
         const vId = v._id.toString();
         const linkedEvents = (v.eventIds || [])
-          .map((id) => {
-            const idStr = id.toString();
+          .map((id) => id.toString())
+          .filter((idStr) => (isCeremonyRestricted ? allowedEventSet.has(idStr) : true))
+          .map((idStr) => {
             const name = eventMap.get(idStr);
             return name ? { id: idStr, name } : null;
           })
@@ -98,16 +117,23 @@ export class VendorService {
 
         return toVendorDTO(v, {
           events: linkedEvents,
-          financials: {
-            agreedAmountPaise: agreedPaise,
-            totalExpensesPaise,
-            totalPaidPaise,
-            totalOutstandingPaise,
-          },
+          financials: canReadFinance
+            ? {
+                agreedAmountPaise: agreedPaise,
+                totalExpensesPaise,
+                totalPaidPaise,
+                totalOutstandingPaise,
+              }
+            : {
+                agreedAmountPaise: 0,
+                totalExpensesPaise: 0,
+                totalPaidPaise: 0,
+                totalOutstandingPaise: 0,
+              },
         });
       });
 
-      return { success: true, data: dtos, nextCursor, hasMore, totalCount };
+      return { success: true, data: dtos, nextCursor, hasMore, totalCount: accessibleVendors.length };
     } catch (err: unknown) {
       console.error("Error fetching vendors:", err);
       return { success: false, error: "Failed to fetch vendors", code: "INTERNAL_ERROR" };
@@ -130,43 +156,60 @@ export class VendorService {
     }
 
     try {
+      const member = await TeamAuthorization.requireWeddingMembership(weddingId, userId);
       const vendor = await VendorRepository.findByIdAndWeddingId({ weddingId, vendorId });
       if (!vendor) {
         return { success: false, error: "Vendor not found", code: "NOT_FOUND" };
       }
 
+      if (member && !TeamAuthorization.canAccessVendor(member, vendor)) {
+        return { success: false, error: "Access denied to vendor", code: "FORBIDDEN" };
+      }
+
+      const canReadFinance = await TeamAuthorization.requireWeddingPermission(weddingId, userId, "finance");
+      const isCeremonyRestricted = Boolean(member && member.role !== "ADMIN" && !member.eventScope?.allEvents);
+      const allowedEventSet = new Set(
+        (member?.eventScope?.eventIds || []).map((id) => id.toString())
+      );
+
       const allEvents = await EventRepository.findEventsByWeddingId({ weddingId });
       const eventMap = new Map(allEvents.map((e) => [e._id.toString(), e.name]));
 
       const linkedEvents = (vendor.eventIds || [])
-        .map((id) => {
-          const idStr = id.toString();
+        .map((id) => id.toString())
+        .filter((idStr) => (isCeremonyRestricted ? allowedEventSet.has(idStr) : true))
+        .map((idStr) => {
           const name = eventMap.get(idStr);
           return name ? { id: idStr, name } : null;
         })
         .filter(Boolean) as Array<{ id: string; name: string }>;
 
-      // Calculate vendor financials (unpaginated for accurate metrics)
-      const expenses = await ExpenseRepository.findExpensesByFilters({ weddingId, vendorId, limit: 10000 });
-      const activeExpenses = expenses.expenses.filter((e) => e.approvalStatus !== "REJECTED");
-      const activeExpIds = activeExpenses.map((e) => e._id.toString());
-
       let totalExpensesPaise = 0;
-      for (const e of activeExpenses) {
-        totalExpensesPaise += e.totalAmountPaise;
-      }
-
       let totalPaidPaise = 0;
-      if (activeExpIds.length > 0) {
-        const payments = await ExpensePaymentRepository.findPaymentsByFilters({ weddingId, status: "PAID", limit: 10000 });
-        for (const p of payments.payments) {
-          if (activeExpIds.includes(p.expenseId.toString())) {
-            totalPaidPaise += p.amountPaise;
+      const agreedPaise = vendor.agreedAmountPaise || 0;
+
+      if (canReadFinance) {
+        const expenses = await ExpenseRepository.findExpensesByFilters({ weddingId, vendorId, limit: 10000 });
+        const accessibleExpenses = expenses.expenses.filter((e) =>
+          member ? TeamAuthorization.canAccessExpense(member, e) : true
+        );
+        const activeExpenses = accessibleExpenses.filter((e) => e.approvalStatus !== "REJECTED");
+        const activeExpIds = activeExpenses.map((e) => e._id.toString());
+
+        for (const e of activeExpenses) {
+          totalExpensesPaise += e.totalAmountPaise;
+        }
+
+        if (activeExpIds.length > 0) {
+          const payments = await ExpensePaymentRepository.findPaymentsByFilters({ weddingId, status: "PAID", limit: 10000 });
+          for (const p of payments.payments) {
+            if (activeExpIds.includes(p.expenseId.toString())) {
+              totalPaidPaise += p.amountPaise;
+            }
           }
         }
       }
 
-      const agreedPaise = vendor.agreedAmountPaise || 0;
       const baseTarget = agreedPaise > 0 ? agreedPaise : totalExpensesPaise;
       const totalOutstandingPaise = Math.max(0, baseTarget - totalPaidPaise);
 
@@ -174,12 +217,19 @@ export class VendorService {
         success: true,
         data: toVendorDTO(vendor, {
           events: linkedEvents,
-          financials: {
-            agreedAmountPaise: agreedPaise,
-            totalExpensesPaise,
-            totalPaidPaise,
-            totalOutstandingPaise,
-          },
+          financials: canReadFinance
+            ? {
+                agreedAmountPaise: agreedPaise,
+                totalExpensesPaise,
+                totalPaidPaise,
+                totalOutstandingPaise,
+              }
+            : {
+                agreedAmountPaise: 0,
+                totalExpensesPaise: 0,
+                totalPaidPaise: 0,
+                totalOutstandingPaise: 0,
+              },
         }),
       };
     } catch (err: unknown) {

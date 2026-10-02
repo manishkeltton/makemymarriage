@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, use, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useState, useEffect, use, Suspense, useRef } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { DocumentDTO, DocumentType } from "@/modules/documents/dto/document.dto";
 import { uploadDocumentToVault, openDocumentAccessUrl } from "@/lib/utils/document-upload";
 
@@ -36,11 +36,20 @@ export default function WorkspaceDocumentsPage({
 function DocumentsContent({ weddingId }: { weddingId: string }) {
   const searchParams = useSearchParams();
   const eventId = searchParams.get("eventId") || "";
+  const urlDocumentId = searchParams.get("documentId") || "";
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
   const [selectedType, setSelectedType] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Highlight refs for URL-driven document reveal (derived, not state)
+  const highlightedDocRef = useRef<HTMLDivElement | null>(null);
+  const resolvedHighlightRef = useRef("");
+  // Derived: card highlighted when URL param is present, list loaded, doc is in list
+  const effectiveHighlightId = !loading && urlDocumentId && documents.some((d) => d.id === urlDocumentId) ? urlDocumentId : "";
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
@@ -82,6 +91,48 @@ function DocumentsContent({ weddingId }: { weddingId: string }) {
       isMounted = false;
     };
   }, [weddingId, selectedType, eventId]);
+
+  // URL-driven document highlight: fetch document by ID when not in current list
+  useEffect(() => {
+    if (!urlDocumentId || loading || resolvedHighlightRef.current === urlDocumentId) return;
+    resolvedHighlightRef.current = urlDocumentId;
+    const found = documents.find((d) => d.id === urlDocumentId);
+    if (found) return; // already in list – effectiveHighlightId derives automatically
+    // Document filtered out – fetch by ID and prepend so it becomes visible
+    const controller = new AbortController();
+    fetch(`/api/v1/weddings/${weddingId}/documents/${urlDocumentId}`, {
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data: { success: boolean; data?: DocumentDTO }) => {
+        if (data.success && data.data) {
+          setDocuments((prev) => [data.data!, ...prev.filter((d) => d.id !== data.data!.id)]);
+          // effectiveHighlightId auto-derives once documents state updates
+        }
+      })
+      .catch(() => {/* 403 / 404 – silently skip */});
+    return () => controller.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlDocumentId, loading, weddingId]);
+
+  // Scroll highlighted document card into view (documents in deps so it fires after prepend)
+  useEffect(() => {
+    if (effectiveHighlightId && highlightedDocRef.current) {
+      highlightedDocRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [effectiveHighlightId, documents]);
+
+  // Auto-clear URL param after 3 s (highlight clears automatically once param removed)
+  useEffect(() => {
+    if (!effectiveHighlightId) return;
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("documentId");
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : pathname, { scroll: false });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [effectiveHighlightId, searchParams, router, pathname]);
 
   const handleUploadDocument = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,7 +283,13 @@ function DocumentsContent({ weddingId }: { weddingId: string }) {
           {documents.map((doc) => (
             <div
               key={doc.id}
-              className="p-4 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between space-y-4 hover:border-primary-container/40 transition-all"
+              ref={doc.id === effectiveHighlightId ? (el) => { highlightedDocRef.current = el; } : undefined}
+              id={`document-${doc.id}`}
+              className={`p-4 rounded-2xl bg-surface-container-lowest border shadow-xs flex flex-col justify-between space-y-4 hover:border-primary-container/40 transition-all ${
+                doc.id === effectiveHighlightId
+                  ? "border-primary/60 ring-2 ring-primary/40"
+                  : "border-surface-container-high/60"
+              }`}
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

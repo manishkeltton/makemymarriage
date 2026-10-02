@@ -5,6 +5,7 @@ import { getSessionToken } from "@/lib/auth/session";
 import { AuthService } from "@/lib/services/auth.service";
 import { WeddingService } from "@/modules/weddings/services/wedding.service";
 import { ActionButton } from "@/components/workspace/action-button";
+import { DashboardQuickActions, AddFirstEventButton } from "@/components/workspace/dashboard-quick-actions";
 import { formatINR } from "@/lib/utils/money";
 
 export default async function WorkspaceDashboardPage({
@@ -262,13 +263,7 @@ export default async function WorkspaceDashboardPage({
                   and expenses around each ceremony.
                 </p>
                 <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <Link
-                    href={`/workspace/${weddingId}/events`}
-                    className="h-[42px] px-6 rounded-lg bg-primary-container hover:bg-primary text-on-primary font-headline-sm text-xs font-semibold flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-[0.98]"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">add</span>
-                    <span>Add Your First Event</span>
-                  </Link>
+                  <AddFirstEventButton />
                   <div className="flex items-center text-on-surface-variant font-label-md text-xs">
                     <span className="material-symbols-outlined text-[18px] mr-1 text-secondary">
                       verified
@@ -283,37 +278,7 @@ export default async function WorkspaceDashboardPage({
                 <span className="font-label-sm text-xs text-on-surface-variant uppercase font-semibold tracking-wider">
                   Quick Actions
                 </span>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <ActionButton
-                    message="Guests feature module coming next!"
-                    className="h-[34px] px-3.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-headline-sm text-xs font-semibold flex items-center gap-1.5 transition-colors border border-surface-container-high/60 shadow-xs cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px] text-primary-container">
-                      person_add
-                    </span>
-                    <span>Add Guest Family</span>
-                  </ActionButton>
-
-                  <Link
-                    href={`/workspace/${weddingId}/tasks`}
-                    className="h-[34px] px-3.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-headline-sm text-xs font-semibold flex items-center gap-1.5 transition-colors border border-surface-container-high/60 shadow-xs cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px] text-primary-container">
-                      add_task
-                    </span>
-                    <span>Create Task</span>
-                  </Link>
-
-                  <ActionButton
-                    message="Team governance module coming next!"
-                    className="h-[34px] px-3.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-headline-sm text-xs font-semibold flex items-center gap-1.5 transition-colors border border-surface-container-high/60 shadow-xs cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px] text-primary-container">
-                      group_add
-                    </span>
-                    <span>Invite Organiser</span>
-                  </ActionButton>
-                </div>
+                <DashboardQuickActions />
               </div>
             </div>
 

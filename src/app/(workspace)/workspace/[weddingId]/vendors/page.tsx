@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, use } from "react";
+import React, { useState, useEffect, useCallback, use, Suspense, useRef } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { VendorDTO, VENDOR_CATEGORIES } from "@/modules/vendors/dto/vendor.dto";
 import { EventDTO } from "@/modules/events/dto/event.dto";
 import { VendorFormModal } from "@/components/vendors/VendorFormModal";
@@ -12,6 +13,25 @@ interface VendorsPageProps {
 
 export default function VendorsPage({ params }: VendorsPageProps) {
   const { weddingId } = use(params);
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-on-surface-variant flex flex-col items-center justify-center gap-2">
+          <span className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <p>Loading vendor directory...</p>
+        </div>
+      }
+    >
+      <VendorsContent weddingId={weddingId} />
+    </Suspense>
+  );
+}
+
+function VendorsContent({ weddingId }: { weddingId: string }) {
+  const searchParams = useSearchParams();
+  const urlVendorId = searchParams.get("vendorId") || "";
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [vendors, setVendors] = useState<VendorDTO[]>([]);
   const [events, setEvents] = useState<EventDTO[]>([]);
@@ -23,6 +43,12 @@ export default function VendorsPage({ params }: VendorsPageProps) {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState<VendorDTO | null>(null);
+
+  // Highlight refs for URL-driven vendor reveal (derived, not state)
+  const highlightedCardRef = useRef<HTMLDivElement | null>(null);
+  const resolvedHighlightRef = useRef("");
+  // Derived: card is highlighted when URL param is present, list loaded, and vendor is in list
+  const effectiveHighlightId = !loading && urlVendorId && vendors.some((v) => v.id === urlVendorId) ? urlVendorId : "";
 
   const fetchVendorsData = useCallback(async () => {
     try {
@@ -68,6 +94,48 @@ export default function VendorsPage({ params }: VendorsPageProps) {
       isMounted = false;
     };
   }, [fetchVendorsData]);
+
+  // URL-driven vendor highlight: fetch vendor by ID when not in current list
+  useEffect(() => {
+    if (!urlVendorId || loading || resolvedHighlightRef.current === urlVendorId) return;
+    resolvedHighlightRef.current = urlVendorId;
+    const found = vendors.find((v) => v.id === urlVendorId);
+    if (found) return; // already in list – effectiveHighlightId derives automatically
+    // Vendor filtered out – fetch by ID and prepend so it becomes visible
+    const controller = new AbortController();
+    fetch(`/api/v1/weddings/${weddingId}/vendors/${urlVendorId}`, {
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data: { success: boolean; data?: VendorDTO }) => {
+        if (data.success && data.data) {
+          setVendors((prev) => [data.data!, ...prev.filter((v) => v.id !== data.data!.id)]);
+          // effectiveHighlightId auto-derives once vendors state updates
+        }
+      })
+      .catch(() => {/* 403 / 404 – silently skip */});
+    return () => controller.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlVendorId, loading, weddingId]);
+
+  // Scroll highlighted card into view (vendors in deps so it fires after fetch prepend)
+  useEffect(() => {
+    if (effectiveHighlightId && highlightedCardRef.current) {
+      highlightedCardRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [effectiveHighlightId, vendors]);
+
+  // Auto-clear URL param after 3 s (highlight clears automatically once param removed)
+  useEffect(() => {
+    if (!effectiveHighlightId) return;
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("vendorId");
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : pathname, { scroll: false });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [effectiveHighlightId, searchParams, router, pathname]);
 
   const handleCreateNew = () => {
     setEditingVendor(null);
@@ -188,9 +256,15 @@ export default function VendorsPage({ params }: VendorsPageProps) {
             const outstandingPaise = vendor.financials?.totalOutstandingPaise || 0;
 
             return (
-              <div
-                key={vendor.id}
-                className="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-high hover:border-outline/40 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+          <div
+              key={vendor.id}
+              ref={vendor.id === effectiveHighlightId ? (el) => { highlightedCardRef.current = el; } : undefined}
+              id={`vendor-${vendor.id}`}
+              className={`bg-surface-container-lowest rounded-2xl p-5 border shadow-xs hover:shadow-md transition-all flex flex-col justify-between ${
+                vendor.id === effectiveHighlightId
+                  ? "border-primary/60 ring-2 ring-primary/40 shadow-primary/10"
+                  : "border-surface-container-high hover:border-outline/40"
+              }`}
               >
                 <div className="space-y-3">
                   <div className="flex justify-between items-start gap-2">

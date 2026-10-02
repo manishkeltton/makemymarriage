@@ -93,13 +93,20 @@ export class EventService {
     }
 
     try {
-      const member = await WeddingMemberRepository.findMember(weddingId, userId);
-      if (!member) {
+      const member =
+        (await TeamAuthorization.requireWeddingMembership(weddingId, userId)) ||
+        (await WeddingMemberRepository.findMember(weddingId, userId));
+      if (!member || member.status !== "ACTIVE") {
         return { success: false, error: "Access denied or wedding not found", code: "FORBIDDEN" };
       }
 
       const events = await EventRepository.findEventsByWeddingId({ weddingId });
-      return { success: true, data: events.map(toEventDTO) };
+      const accessibleEvents = events.filter((e) =>
+        typeof TeamAuthorization.canAccessEventId === "function"
+          ? TeamAuthorization.canAccessEventId(member, e._id.toString())
+          : true
+      );
+      return { success: true, data: accessibleEvents.map(toEventDTO) };
     } catch (err: unknown) {
       console.error("Error fetching events:", err);
       return { success: false, error: "Failed to fetch events", code: "INTERNAL_ERROR" };

@@ -1,6 +1,6 @@
 # Make My Marriage — Project Status
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 This file tracks major implementation milestones. Add new features as work begins and update existing entries as they progress. Dates below indicate when progress was recorded, not necessarily when a feature was originally completed.
 
@@ -25,6 +25,10 @@ This file tracks major implementation milestones. Add new features as work begin
 | Cloudinary Media Storage Migration | Completed | 2026-10-01 |
 | V1 Documents & Attachments Vault  | Completed | 2026-10-01 |
 | V1 Event/Ceremony Workspace Integration | Completed | 2026-10-01 |
+| V1 Workspace Quick Actions Integration | Completed | 2026-10-02 |
+| V1 Workspace Search               | Completed | 2026-10-02 |
+| V1 Search Access Restrictions     | Completed | 2026-10-02 |
+| V1 Search Result Navigation       | Completed | 2026-10-02 |
 | Pending Features & Future Roadmap     | Tracked   | 2026-09-26   |
 
 ## 1. Project scaffold
@@ -294,6 +298,93 @@ This file tracks major implementation milestones. Add new features as work begin
   - `npm run typecheck`: **PASS** (0 errors).
   - `npx vitest run`: **PASS** (21 test files, 197 passed, 100% pass rate).
   - `npm run build`: **PASS** (Next.js production build verified).
+
+## 19. V1 Workspace Quick Actions Integration
+
+- **Status:** Completed
+- **Last updated:** 2026-10-02
+- **Implemented:** Implemented the V1 Workspace Quick Actions Integration for Make My Marriage matching system specification `docs/18-Workspace-Quick-Actions.md`:
+  - **QuickActionsContext & Provider:** Created centralized `QuickActionsProvider` (`src/components/workspace/quick-actions-context.tsx`) wrapping the workspace shell. Pre-loads workspace event and team member options with stale-response protection and wedding switching safety.
+  - **Fresh Modal Lifecycle:** Guarantees every modal trigger (`ADD_CEREMONY`, `CREATE_TASK`, `ADD_GUEST`, `INVITE_ORGANISER`) initiates a clean creation/invitation flow with empty initial form state (`eventToEdit={null}`, `taskToEdit={null}`, `household={null}`).
+  - **Header & Dashboard Wiring:** Connected header `+ Add` dropdown menu items, dashboard quick action cards (`src/components/workspace/dashboard-quick-actions.tsx`), dashboard primary action buttons (`AddFirstEventButton`), and quick action card buttons (`src/components/workspace/quick-actions.tsx`) to `useQuickActions()`.
+  - **Accessibility & Focus Restoration:** Added full keyboard navigation (`Escape` closing, focus trap in modals, menu navigation) and automatic focus restoration to triggering elements upon modal closure.
+  - **Soft Refresh on Success:** Invokes `refreshWorkspaceData()` on successful creation to fetch fresh options and refresh Next.js router cache without full page reloads.
+  - **Approved P0/P1 Code Review Finding Fixes (2026-10-02):**
+    - `QUICK-ACTIONS-P1-01`: Validated `currentWeddingIdRef` in `fetchWorkspaceOptions` to discard background option fetches if active wedding context changes before promises resolve.
+    - `QUICK-ACTIONS-P1-02`: Added focus restoration fallback in `closeQuickAction` querying the header `+ Add` button if original trigger element is unmounted.
+  - **Documentation & Integration Test Suite:** Created `docs/18-Workspace-Quick-Actions.md` and integration test suite in `src/__tests__/quick-actions.test.ts`. Updated review report in `docs/reviews/workspace-quick-actions-review.md`.
+- **Repository Verification Suite:**
+  - `npm run lint`: **PASS** (0 errors, 0 warnings).
+  - `npm run typecheck`: **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (22 test files, 205 passed, 100% pass rate).
+
+## 20. V1 Workspace Search
+
+- **Status:** Completed
+- **Last updated:** 2026-10-02
+- **Implemented:** Implemented the V1 Workspace Search for Make My Marriage matching PRD section 44, API Design (`docs/19-Workspace-Search.md`), and approved Stitch screens:
+  - **Unified Search Service & DTOs:** Built `SearchService` (`src/modules/search/services/search.service.ts`) and DTO schemas (`src/modules/search/dto/search.dto.ts`) executing parallel tenant-isolated queries across 6 core modules: Events, Tasks, Guests, Vendors, Expenses, and Documents.
+  - **Server-Side Permission Gating:** Enforced strict membership and permission gating via `TeamAuthorization.requireWeddingPermission` for guests, vendors, and finance. Unauthorized module queries are silently skipped without data or count leaks.
+  - **API Endpoint:** Created `GET /api/v1/weddings/[weddingId]/search?q=...` API endpoint (`src/app/api/v1/weddings/[weddingId]/search/route.ts`) enforcing query length minimums (>= 2 chars), query sanitization, and JSON response formatting.
+  - **UI Modal Component & Keyboard Shortcut:** Built `WorkspaceSearchModal` (`src/components/workspace/workspace-search-modal.tsx`) mounted in `WorkspaceHeader` (`src/components/workspace/workspace-header.tsx`). Implemented 250ms debounced input, state machine handling, ARIA combobox attributes, focus restoration to triggering elements, and global `Cmd+K` / `Ctrl+K` keyboard shortcut listener.
+  - **Target Record Navigation:** Formatted exact target URLs for all 6 entity types enabling direct navigation to highlighted items across workspace views.
+  - **Approved P0/P1 Code Review Finding Fixes (2026-10-02):**
+    - `SEARCH-P1-01`: Fully resolved missing unified search endpoint and header modal UI component.
+    - `SEARCH-P1-02`: Escaped regex special characters (`+`, `(`, `[`, `*`, `?`) across search repositories and search service using `replace(/[.*+?^${}()|[\]\\]/g, "\\$&")` to prevent unhandled `SyntaxError` crashes on arbitrary input.
+  - **Documentation & Integration Test Suite:** Added unit and integration test suite in `src/__tests__/workspace-search.test.ts` (4 tests passing). Updated review report in `docs/reviews/workspace-search-review.md`.
+- **Repository Verification Suite:**
+  - `npm run lint`: **PASS** (0 errors, 0 warnings).
+  - `npx tsc --noEmit`: **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (23 test files, 209 passed, 100% pass rate).
+  - `npm run build`: **PASS** (Successful Next.js production build with `/api/v1/weddings/[weddingId]/search`).
+
+## 21. V1 Search Access Restrictions
+
+- **Status:** Completed
+- **Last updated:** 2026-10-02
+- **Implemented:** Implemented the V1 Search Access Restrictions milestone for Make My Marriage matching PRD, API Design, and specification `docs/search-access-restrictions.md`:
+  - **Granular Access Matrix & Authorization Engine:** Extended `TeamAuthorization` (`src/modules/team/authorization/team.auth.ts`) with `canAccessEventId`, `canAccessTask`, `canAccessVendor`, `canAccessExpense`, and `canAccessDocument`.
+  - **Pre-Limit DB Query Authorization:** Updated `SearchService` (`src/modules/search/services/search.service.ts`) to embed ceremony scope filters (`_id: { $in: allowedEventIds }`) directly into Mongoose queries before `.limit()`, ensuring search matches and total counts reflect accessible records accurately.
+  - **Document Parent Access & Orphan Policy:** Implemented parallel batch parent validation for `EVENT`, `TASK`, `VENDOR`, and `EXPENSE` document attachments. Omitted orphan documents (missing or deleted parents) and restricted parent documents from search results and signed access URL generation (`DocumentService.getDocumentAccessUrl`).
+  - **Shared Vendor Sanitization:** Enforced financial metric masking (`agreedAmountPaise: 0`) for users lacking `finance` permission and stripped restricted ceremony IDs from vendor metadata.
+  - **Approved P0/P1 Code Review Finding Fixes (2026-10-02):**
+    - `SAR-001`: Expanded candidate document search limit window (`candidateDocLimit = safeLimit * 10`) prior to evaluating `canAccessDocument` parent validation, preventing false empty search results when restricted documents appear first.
+    - `SAR-002`: Enforced ceremony scope authorization (`canAccessEventId`, `canAccessTask`, `canAccessExpense`, `canAccessVendor`) across direct module list and detail service endpoints (`EventService`, `TaskService`, `ExpenseService`, `VendorService`).
+    - `SAR-003`: Filtered vendor financial aggregates in `VendorService.getVendors` and `getVendorById` through `canAccessExpense`, isolating financial figures to ceremonies accessible to the member.
+    - `SAR-005`: Reused `member` context in `SearchService` via synchronous `TeamAuthorization.hasPermission`, eliminating redundant database member lookups.
+  - **Documentation & Test Suite:** Created specification `docs/search-access-restrictions.md`, review document `docs/reviews/search-access-restrictions-review.md`. Added comprehensive regression test suite in `src/__tests__/workspace-search-access.test.ts`.
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint`: **PASS** (0 errors, 0 warnings with `--max-warnings=0`).
+  - `npx tsc --noEmit`: **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (24 test files, 215 passed, 100% pass rate).
+  - `npm run build`: **PASS** (Next.js production build verified).
+
+## 22. V1 Search Result Navigation
+
+- **Status:** Completed
+- **Last updated:** 2026-10-02
+- **Implemented:** Implemented the V1 Search Result Navigation milestone matching specification `docs/search-result-navigation.md` and approved Stitch designs:
+  - **Destination Contracts:** Enforced URL target specs across all 6 core modules:
+    - `/events/[eventId]`: Direct navigation to existing Event Detail RSC page.
+    - `/tasks?taskId=ID`: Opens `TaskDetailDrawer` slide-over.
+    - `/guests?householdId=ID`: Opens `GuestDetailDrawer` slide-over.
+    - `/expenses?expenseId=ID`: Opens `ExpenseDetailDrawer` slide-over.
+    - `/vendors?vendorId=ID`: Scrolls to, reveals, and highlights exact vendor card.
+    - `/documents?documentId=ID`: Scrolls to, reveals, and highlights exact document card.
+  - **Single Record Read APIs:** Added single record lookup API routes (`/api/v1/weddings/[weddingId]/documents/[documentId]` and `/vendors/[vendorId]`) backed by `DocumentService.getDocumentById` and `VendorService.getVendorById`, allowing off-page / off-filter search targets to resolve and highlight smoothly.
+  - **State & URL Synchronization:** Preserved existing search parameters upon drawer/highlight close (`router.replace`). Handled history navigation, refresh, and back/forward without state loops. Added strict `urlFetched*.id === urlId` matching checks across workspace pages to eliminate race conditions from out-of-order async responses. Fixed `handleCloseDrawer` cleanup to reset drawer open states unconditionally.
+  - **Security & Authorization:** Reused server-side tenant isolation (`requireWeddingMembership`) and ceremony/module permissions (`canAccessVendor`, `canAccessDocument`). URL query IDs act as navigation hints, never permission grants.
+  - **Approved P0/P1 Finding Fixes (2026-10-02):**
+    - `SRN-001`: Implemented `DocumentService.getDocumentById` with full authorization and tenant checks, and exported `GET` route handler in `src/app/api/v1/weddings/[weddingId]/documents/[documentId]/route.ts`.
+    - `SRN-002`: Added `urlFetched*.id === urlId` validation in target resolution across tasks, guests, expenses, and vendors workspace pages.
+    - `SRN-003`: Updated `handleCloseDrawer` in `tasks/page.tsx` and `guests/page.tsx` to set `setIsDrawerOpen(false)` and clear selected state regardless of original URL query parameter presence.
+    - `SRN-004`: Refactored and expanded `src/__tests__/search-result-navigation.test.ts` and `src/__tests__/documents.test.ts` with direct unit tests for single document API handlers, ID matching, and drawer state cleanup.
+  - **Documentation & Review Reports:** Created `docs/search-result-navigation.md` specification, `docs/reviews/search-result-navigation-review.md` code review report, and integration test suite in `src/__tests__/search-result-navigation.test.ts`.
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint`: **PASS** (0 errors, 0 warnings with `--max-warnings=0`).
+  - `npx tsc --noEmit`: **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (25 test files, 225 passed, 100% pass rate).
+  - `npm run build`: **PASS** (Next.js 16.3.5 Turbopack production build verified, dynamic `/api/v1/weddings/[weddingId]/documents/[documentId]` route generated).
 
 ## Future entries
 

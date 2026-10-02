@@ -74,10 +74,10 @@ export function toVendorDTO(
     agreedAmountPaise: vendor.agreedAmountPaise,
     currency: vendor.currency || "INR",
     notes: vendor.notes || undefined,
-    createdBy: vendor.createdBy.toString(),
+    createdBy: vendor.createdBy ? vendor.createdBy.toString() : "",
     updatedBy: vendor.updatedBy ? vendor.updatedBy.toString() : undefined,
-    createdAt: vendor.createdAt.toISOString(),
-    updatedAt: vendor.updatedAt.toISOString(),
+    createdAt: vendor.createdAt ? vendor.createdAt.toISOString() : new Date().toISOString(),
+    updatedAt: vendor.updatedAt ? vendor.updatedAt.toISOString() : new Date().toISOString(),
     events: extra?.events,
     financials: extra?.financials,
   };

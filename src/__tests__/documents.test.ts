@@ -418,4 +418,51 @@ describe("V1 Documents & Attachments Vault Integration Tests", () => {
       expect(result.error).toContain("does not belong to this wedding workspace");
     });
   });
+
+  describe("8. Document Single-Record Retrieval (getDocumentById)", () => {
+    it("SRN-001: should return document DTO when found and authorized", async () => {
+      vi.spyOn(TeamAuthorization, "requireWeddingMembership").mockResolvedValue(mockAdminMember as never);
+
+      const mockDoc = {
+        _id: new Types.ObjectId(fakeDocId),
+        weddingId: new Types.ObjectId(fakeWeddingId),
+        title: "Catering Contract",
+        type: "CONTRACT",
+        fileKey: "cloudinary:weddings/123/docs/contract.pdf",
+        mimeType: "application/pdf",
+        fileSize: 2048576,
+        uploadedBy: new Types.ObjectId(fakeUserId),
+        parentType: "NONE",
+        parentId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      vi.spyOn(DocumentRepository, "findByIdAndWeddingId").mockResolvedValue(mockDoc as unknown as IDocument);
+
+      const result = await DocumentService.getDocumentById({
+        weddingId: fakeWeddingId,
+        documentId: fakeDocId,
+        userId: fakeUserId,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.id).toBe(fakeDocId);
+      expect(result.data?.title).toBe("Catering Contract");
+    });
+
+    it("SRN-001: should return NOT_FOUND error when document does not exist", async () => {
+      vi.spyOn(TeamAuthorization, "requireWeddingMembership").mockResolvedValue(mockAdminMember as never);
+      vi.spyOn(DocumentRepository, "findByIdAndWeddingId").mockResolvedValue(null);
+
+      const result = await DocumentService.getDocumentById({
+        weddingId: fakeWeddingId,
+        documentId: fakeDocId,
+        userId: fakeUserId,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe("NOT_FOUND");
+    });
+  });
 });

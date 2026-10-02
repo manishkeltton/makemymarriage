@@ -1,8 +1,11 @@
 "use client";
 
 import React from "react";
+import { useQuickActions } from "./quick-actions-context";
 
 export function QuickActions() {
+  const { openQuickAction } = useQuickActions();
+
   return (
     <div className="bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-xs space-y-4">
       <h2 className="text-lg font-serif font-bold text-stone-900 tracking-tight">
@@ -11,7 +14,8 @@ export function QuickActions() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <button
-          onClick={() => alert("Events feature module coming next!")}
+          type="button"
+          onClick={(e) => openQuickAction("ADD_CEREMONY", undefined, e.currentTarget)}
           className="p-4 rounded-2xl bg-stone-50 hover:bg-amber-50 border border-stone-200 hover:border-amber-200 text-left transition-all space-y-1 group cursor-pointer"
         >
           <div className="text-xl">✨</div>
@@ -22,7 +26,8 @@ export function QuickActions() {
         </button>
 
         <button
-          onClick={() => alert("Tasks feature module coming next!")}
+          type="button"
+          onClick={(e) => openQuickAction("CREATE_TASK", undefined, e.currentTarget)}
           className="p-4 rounded-2xl bg-stone-50 hover:bg-amber-50 border border-stone-200 hover:border-amber-200 text-left transition-all space-y-1 group cursor-pointer"
         >
           <div className="text-xl">📝</div>
@@ -33,7 +38,8 @@ export function QuickActions() {
         </button>
 
         <button
-          onClick={() => alert("Guests feature module coming next!")}
+          type="button"
+          onClick={(e) => openQuickAction("ADD_GUEST", undefined, e.currentTarget)}
           className="p-4 rounded-2xl bg-stone-50 hover:bg-amber-50 border border-stone-200 hover:border-amber-200 text-left transition-all space-y-1 group cursor-pointer"
         >
           <div className="text-xl">💌</div>
@@ -44,7 +50,8 @@ export function QuickActions() {
         </button>
 
         <button
-          onClick={() => alert("Team management module coming next!")}
+          type="button"
+          onClick={(e) => openQuickAction("INVITE_ORGANISER", undefined, e.currentTarget)}
           className="p-4 rounded-2xl bg-stone-50 hover:bg-amber-50 border border-stone-200 hover:border-amber-200 text-left transition-all space-y-1 group cursor-pointer"
         >
           <div className="text-xl">👥</div>

@@ -24,14 +24,16 @@ export function toEventDTO(event: IEvent): EventDTO {
 
   return {
     id: (doc._id || event._id).toString(),
-    weddingId: (doc.weddingId || event.weddingId).toString(),
+    weddingId: doc.weddingId || event.weddingId ? (doc.weddingId || event.weddingId).toString() : "",
     name: doc.name || event.name,
     description: doc.description || event.description || undefined,
     type: (doc.type || event.type || "CUSTOM") as EventType,
     startAt:
-      (doc.startAt || event.startAt) instanceof Date
-        ? (doc.startAt || event.startAt).toISOString()
-        : new Date(doc.startAt || event.startAt).toISOString(),
+      doc.startAt || event.startAt
+        ? (doc.startAt || event.startAt) instanceof Date
+          ? (doc.startAt || event.startAt).toISOString()
+          : new Date(doc.startAt || event.startAt).toISOString()
+        : new Date().toISOString(),
     endAt: doc.endAt || event.endAt
       ? (doc.endAt || event.endAt) instanceof Date
         ? (doc.endAt || event.endAt).toISOString()
@@ -58,17 +60,21 @@ export function toEventDTO(event: IEvent): EventDTO {
       ? (doc.coverMediaId || event.coverMediaId).toString()
       : undefined,
     notes: doc.notes || event.notes || undefined,
-    createdBy: (doc.createdBy || event.createdBy).toString(),
+    createdBy: doc.createdBy || event.createdBy ? (doc.createdBy || event.createdBy).toString() : "",
     updatedBy: doc.updatedBy || event.updatedBy
       ? (doc.updatedBy || event.updatedBy).toString()
       : undefined,
     createdAt:
-      (doc.createdAt || event.createdAt) instanceof Date
-        ? (doc.createdAt || event.createdAt).toISOString()
-        : new Date(doc.createdAt || event.createdAt).toISOString(),
+      doc.createdAt || event.createdAt
+        ? (doc.createdAt || event.createdAt) instanceof Date
+          ? (doc.createdAt || event.createdAt).toISOString()
+          : new Date(doc.createdAt || event.createdAt).toISOString()
+        : new Date().toISOString(),
     updatedAt:
-      (doc.updatedAt || event.updatedAt) instanceof Date
-        ? (doc.updatedAt || event.updatedAt).toISOString()
-        : new Date(doc.updatedAt || event.updatedAt).toISOString(),
+      doc.updatedAt || event.updatedAt
+        ? (doc.updatedAt || event.updatedAt) instanceof Date
+          ? (doc.updatedAt || event.updatedAt).toISOString()
+          : new Date(doc.updatedAt || event.updatedAt).toISOString()
+        : new Date().toISOString(),
   };
 }

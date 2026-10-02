@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, use, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useState, useEffect, useCallback, use, Suspense, useRef } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { TaskDTO, TaskSummaryDTO } from "@/modules/tasks/dto/task.dto";
 import { EventDTO } from "@/modules/events/dto/event.dto";
 import { TeamMemberDTO } from "@/modules/team/dto/team.dto";
@@ -32,6 +32,9 @@ export default function WorkspaceTasksPage({
 function TasksContent({ weddingId }: { weddingId: string }) {
   const searchParams = useSearchParams();
   const urlEventId = searchParams.get("eventId") || "";
+  const urlTaskId = searchParams.get("taskId") || "";
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [events, setEvents] = useState<EventDTO[]>([]);
@@ -55,6 +58,13 @@ function TasksContent({ weddingId }: { weddingId: string }) {
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   const [selectedTaskForDrawer, setSelectedTaskForDrawer] = useState<TaskDTO | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  // State for task fetched by API when urlTaskId not in the loaded list
+  const [urlFetchedTask, setUrlFetchedTask] = useState<TaskDTO | null>(null);
+  const resolvedUrlTaskRef = useRef("");
+  // Derived: the task to surface when navigating to a URL with taskId param
+  const urlTargetTask = urlTaskId
+    ? (tasks.find((t) => t.id === urlTaskId) ?? (urlFetchedTask?.id === urlTaskId ? urlFetchedTask : null))
+    : null;
 
   const [completedAccordionOpen, setCompletedAccordionOpen] = useState(false);
 
@@ -179,6 +189,37 @@ function TasksContent({ weddingId }: { weddingId: string }) {
     setTasks(updated);
     computeMetrics(updated);
   };
+
+  // URL-driven drawer: fetch task by API when urlTaskId not in loaded list
+  useEffect(() => {
+    if (!urlTaskId || loading || resolvedUrlTaskRef.current === urlTaskId) return;
+    resolvedUrlTaskRef.current = urlTaskId;
+    const found = tasks.find((t) => t.id === urlTaskId);
+    if (found) return; // urlTargetTask derives from tasks list, no setState needed
+    // Task not in current list – fetch by ID (setState inside async .then() is lint-safe)
+    const controller = new AbortController();
+    fetch(`/api/v1/weddings/${weddingId}/tasks/${urlTaskId}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((data: { success: boolean; data?: TaskDTO }) => {
+        if (data.success && data.data) setUrlFetchedTask(data.data);
+      })
+      .catch(() => {/* 403 / 404 – silently skip */});
+    return () => controller.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlTaskId, loading, weddingId]);
+
+  const handleCloseDrawer = useCallback(() => {
+    setIsDrawerOpen(false);
+    setSelectedTaskForDrawer(null);
+    setUrlFetchedTask(null);
+    resolvedUrlTaskRef.current = "";
+    if (urlTaskId) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("taskId");
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : pathname, { scroll: false });
+    }
+  }, [urlTaskId, searchParams, router, pathname]);
 
   // Filter & Search Logic
   const now = new Date();
@@ -757,11 +798,11 @@ function TasksContent({ weddingId }: { weddingId: string }) {
       {/* Task Detail Drawer */}
       <TaskDetailDrawer
         weddingId={weddingId}
-        task={selectedTaskForDrawer}
+        task={selectedTaskForDrawer ?? urlTargetTask}
         events={events}
         teamMembers={teamMembers}
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        isOpen={isDrawerOpen || Boolean(urlTargetTask)}
+        onClose={handleCloseDrawer}
         onTaskUpdated={handleTaskUpdated}
         onTaskDeleted={handleTaskDeleted}
       />

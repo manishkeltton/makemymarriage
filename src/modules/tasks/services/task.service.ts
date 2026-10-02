@@ -118,19 +118,21 @@ export class TaskService {
     }
 
     try {
-      const { tasks, nextCursor, hasMore, totalCount } = await TaskRepository.findTasksByFilters({
+      const { tasks, nextCursor, hasMore } = await TaskRepository.findTasksByFilters({
         weddingId,
         ...filters,
       });
 
+      const accessibleTasks = tasks.filter((t) => TeamAuthorization.canAccessTask(member, t));
+
       // Gather reference IDs for bulk enrichment
       const eventIds = Array.from(
-        new Set(tasks.map((t) => t.eventId?.toString()).filter(Boolean) as string[])
+        new Set(accessibleTasks.map((t) => t.eventId?.toString()).filter(Boolean) as string[])
       );
       const userIds = Array.from(
-        new Set(tasks.map((t) => t.assignedTo?.toString()).filter(Boolean) as string[])
+        new Set(accessibleTasks.map((t) => t.assignedTo?.toString()).filter(Boolean) as string[])
       );
-      const taskIds = tasks.map((t) => t._id.toString());
+      const taskIds = accessibleTasks.map((t) => t._id.toString());
 
       const [events, users, commentCounts, docCounts] = await Promise.all([
         eventIds.length ? EventRepository.findEventsByWeddingId({ weddingId }) : Promise.resolve([]),
@@ -150,7 +152,7 @@ export class TaskService {
       const eventMap = new Map(events.map((e) => [e._id.toString(), e.name]));
       const userMap = new Map(users.map((u) => [u._id.toString(), { name: u.name, email: u.email }]));
 
-      const dtos = tasks.map((t, idx) => {
+      const dtos = accessibleTasks.map((t, idx) => {
         const eId = t.eventId?.toString();
         const uId = t.assignedTo?.toString();
         const uInfo = uId ? userMap.get(uId) : undefined;
@@ -164,7 +166,7 @@ export class TaskService {
         });
       });
 
-      return { success: true, data: dtos, nextCursor, hasMore, totalCount };
+      return { success: true, data: dtos, nextCursor, hasMore, totalCount: accessibleTasks.length };
     } catch (err: unknown) {
       console.error("Error fetching tasks:", err);
       return { success: false, error: "Failed to fetch tasks", code: "INTERNAL_ERROR" };
@@ -190,6 +192,10 @@ export class TaskService {
       const task = await TaskRepository.findByIdAndWeddingId({ weddingId, taskId });
       if (!task) {
         return { success: false, error: "Task not found", code: "NOT_FOUND" };
+      }
+
+      if (!TeamAuthorization.canAccessTask(member, task)) {
+        return { success: false, error: "Access denied: you do not have permission for this task", code: "FORBIDDEN" };
       }
 
       let eventName: string | undefined = undefined;

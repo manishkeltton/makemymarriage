@@ -55,6 +55,9 @@ vi.mock("../modules/team/authorization/team.auth", () => ({
   TeamAuthorization: {
     requireWeddingPermission: vi.fn(),
     requireWeddingMembership: vi.fn(),
+    canAccessVendor: vi.fn().mockReturnValue(true),
+    canAccessExpense: vi.fn().mockReturnValue(true),
+    hasPermission: vi.fn().mockReturnValue(true),
   },
 }));
 

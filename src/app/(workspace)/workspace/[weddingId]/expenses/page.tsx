@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, use } from "react";
+import React, { useState, useEffect, useCallback, use, Suspense, useRef } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { ExpenseDTO, ExpensePaymentDTO, FinanceSummaryDTO, EXPENSE_CATEGORIES } from "@/modules/expenses/dto/expense.dto";
 import { EventDTO } from "@/modules/events/dto/event.dto";
 import { VendorDTO } from "@/modules/vendors/dto/vendor.dto";
@@ -16,6 +17,25 @@ interface ExpensesPageProps {
 
 export default function ExpensesPage({ params }: ExpensesPageProps) {
   const { weddingId } = use(params);
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-on-surface-variant flex flex-col items-center justify-center gap-2">
+          <span className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <p>Loading finance data...</p>
+        </div>
+      }
+    >
+      <ExpensesContent weddingId={weddingId} />
+    </Suspense>
+  );
+}
+
+function ExpensesContent({ weddingId }: { weddingId: string }) {
+  const searchParams = useSearchParams();
+  const urlExpenseId = searchParams.get("expenseId") || "";
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [activeTab, setActiveTab] = useState<"expenses" | "payments" | "payers">("expenses");
 
@@ -41,6 +61,15 @@ export default function ExpensesPage({ params }: ExpensesPageProps) {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedExpenseForDrawer, setSelectedExpenseForDrawer] = useState<ExpenseDTO | null>(null);
+
+  // State for expense fetched by API when urlExpenseId is not in main loaded list
+  const [urlFetchedExpense, setUrlFetchedExpense] = useState<ExpenseDTO | null>(null);
+  const resolvedUrlExpenseIdRef = useRef("");
+
+  // Derived: expense to show in drawer when URL searchParam expenseId is set
+  const urlTargetExpense = urlExpenseId
+    ? expenses.find((e) => e.id === urlExpenseId) || (urlFetchedExpense?.id === urlExpenseId ? urlFetchedExpense : null)
+    : null;
 
   const fetchWorkspaceFinanceData = useCallback(async () => {
     try {
@@ -108,6 +137,47 @@ export default function ExpensesPage({ params }: ExpensesPageProps) {
       isMounted = false;
     };
   }, [fetchWorkspaceFinanceData]);
+
+  // URL-driven drawer auto-open: fetch ExpenseDetailDrawer data if expenseId param is present and not in loaded list
+  useEffect(() => {
+    if (!urlExpenseId || loading) {
+      resolvedUrlExpenseIdRef.current = "";
+      return;
+    }
+    const found = expenses.find((e) => e.id === urlExpenseId);
+    if (found) {
+      resolvedUrlExpenseIdRef.current = urlExpenseId;
+      return;
+    }
+    if (resolvedUrlExpenseIdRef.current === urlExpenseId) return;
+
+    const controller = new AbortController();
+    fetch(`/api/v1/weddings/${weddingId}/expenses/${urlExpenseId}`, {
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data: { success: boolean; data?: ExpenseDTO }) => {
+        if (data.success && data.data) {
+          setUrlFetchedExpense(data.data);
+          resolvedUrlExpenseIdRef.current = urlExpenseId;
+        }
+      })
+      .catch(() => {/* 403 / 404 – silently skip */});
+    return () => controller.abort();
+  }, [urlExpenseId, loading, expenses, weddingId]);
+
+  const handleCloseDrawer = useCallback(() => {
+    setIsDrawerOpen(false);
+    setSelectedExpenseForDrawer(null);
+    setUrlFetchedExpense(null);
+    resolvedUrlExpenseIdRef.current = "";
+    if (urlExpenseId) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("expenseId");
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : pathname, { scroll: false });
+    }
+  }, [urlExpenseId, searchParams, router, pathname]);
 
   const handleCreateExpense = () => {
     setEditingExpense(null);
@@ -585,11 +655,11 @@ export default function ExpensesPage({ params }: ExpensesPageProps) {
       )}
 
       <ExpenseDetailDrawer
-        isOpen={isDrawerOpen}
+        isOpen={isDrawerOpen || Boolean(urlTargetExpense)}
         weddingId={weddingId}
-        expense={selectedExpenseForDrawer}
+        expense={selectedExpenseForDrawer ?? urlTargetExpense}
         teamMembers={teamMembers}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={handleCloseDrawer}
         onExpenseUpdated={fetchWorkspaceFinanceData}
       />
     </div>

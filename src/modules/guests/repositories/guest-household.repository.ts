@@ -118,7 +118,8 @@ export class GuestHouseholdRepository {
     if (invitationStatus) query.invitationStatus = invitationStatus;
 
     if (q && q.trim()) {
-      const searchRegex = new RegExp(q.trim(), "i");
+      const escapedQuery = q.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapedQuery, "i");
       query.$or = [
         { householdName: searchRegex },
         { "primaryContact.name": searchRegex },
