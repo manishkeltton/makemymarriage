@@ -1,10 +1,12 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { useQuickActions } from "./quick-actions-context";
 
 export function DashboardQuickActions() {
   const { openQuickAction } = useQuickActions();
+  const t = useTranslations("Workspace");
 
   return (
     <div className="flex flex-wrap items-center gap-2.5">
@@ -16,7 +18,7 @@ export function DashboardQuickActions() {
         <span className="material-symbols-outlined text-[16px] text-primary-container">
           event
         </span>
-        <span>Add Ceremony</span>
+        <span>{t("addCeremony")}</span>
       </button>
 
       <button
@@ -27,7 +29,7 @@ export function DashboardQuickActions() {
         <span className="material-symbols-outlined text-[16px] text-primary-container">
           add_task
         </span>
-        <span>Create Task</span>
+        <span>{t("createTask")}</span>
       </button>
 
       <button
@@ -38,7 +40,7 @@ export function DashboardQuickActions() {
         <span className="material-symbols-outlined text-[16px] text-primary-container">
           person_add
         </span>
-        <span>Add Guest Family</span>
+        <span>{t("addGuestFamily")}</span>
       </button>
 
       <button
@@ -49,7 +51,7 @@ export function DashboardQuickActions() {
         <span className="material-symbols-outlined text-[16px] text-primary-container">
           group_add
         </span>
-        <span>Invite Organiser</span>
+        <span>{t("inviteOrganiser")}</span>
       </button>
     </div>
   );
@@ -57,6 +59,7 @@ export function DashboardQuickActions() {
 
 export function AddFirstEventButton() {
   const { openQuickAction } = useQuickActions();
+  const t = useTranslations("Workspace");
 
   return (
     <button
@@ -65,7 +68,7 @@ export function AddFirstEventButton() {
       className="h-[42px] px-6 rounded-lg bg-primary-container hover:bg-primary text-on-primary font-headline-sm text-xs font-semibold flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-[0.98]"
     >
       <span className="material-symbols-outlined text-[20px]">add</span>
-      <span>Add Your First Event</span>
+      <span>{t("addFirstEvent")}</span>
     </button>
   );
 }

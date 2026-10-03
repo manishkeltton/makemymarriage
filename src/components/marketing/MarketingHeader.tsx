@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/marketing/Logo";
 
 export interface MarketingHeaderUser {
@@ -16,6 +17,7 @@ export interface MarketingHeaderProps {
 }
 
 export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
+  const tNav = useTranslations("Nav");
   const router = useRouter();
   const [user, setUser] = useState<MarketingHeaderUser | null>(initialUser || null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -88,25 +90,25 @@ export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
             href="#product"
             className="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors"
           >
-            Product
+            {tNav("product")}
           </Link>
           <Link
             href="#features"
             className="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors"
           >
-            Features
+            {tNav("features")}
           </Link>
           <Link
             href="#how-it-works"
             className="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors"
           >
-            How It Works
+            {tNav("howItWorks")}
           </Link>
           <Link
             href="#pricing"
             className="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors"
           >
-            Pricing
+            {tNav("pricing")}
           </Link>
         </nav>
 
@@ -120,7 +122,7 @@ export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
                 className="hidden sm:inline-flex items-center gap-1.5 bg-primary-container hover:bg-[#5D1F2C] text-on-primary px-space-lg py-space-sm rounded-lg font-headline-sm text-headline-sm transition-all shadow-sm active:scale-[0.98]"
               >
                 <span className="material-symbols-outlined text-[18px]">space_dashboard</span>
-                <span>Go to Workspace</span>
+                <span>{tNav("goToWorkspace")}</span>
               </Link>
 
               {/* User Avatar & Dropdown */}
@@ -154,7 +156,18 @@ export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
                         <span className="material-symbols-outlined text-[18px] text-primary-container">
                           space_dashboard
                         </span>
-                        <span>Go to Workspace</span>
+                        <span>{tNav("goToWorkspace")}</span>
+                      </Link>
+
+                      <Link
+                        href="/profile"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="w-full text-left px-4 py-2 hover:bg-surface-container-low text-xs font-medium text-on-surface flex items-center gap-2.5 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[18px] text-primary-container">
+                          person
+                        </span>
+                        <span>{tNav("myProfile")}</span>
                       </Link>
 
                       <button
@@ -165,7 +178,7 @@ export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
                         <span className="material-symbols-outlined text-[18px] text-error">
                           logout
                         </span>
-                        <span>Sign Out</span>
+                        <span>{tNav("signOut")}</span>
                       </button>
                     </div>
                   </div>
@@ -179,13 +192,13 @@ export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
                 href="/login"
                 className="font-headline-sm text-headline-sm text-on-surface-variant hover:text-on-surface px-space-sm py-space-xs transition-colors"
               >
-                Sign In
+                {tNav("signIn")}
               </Link>
               <Link
                 href="/signup"
                 className="hidden sm:inline-flex bg-primary-container hover:bg-[#5D1F2C] text-on-primary px-space-lg py-space-sm rounded-lg font-headline-sm text-headline-sm transition-colors shadow-sm"
               >
-                Start Planning Free
+                {tNav("startFree")}
               </Link>
             </div>
           )}
@@ -213,28 +226,28 @@ export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
               onClick={() => setIsMobileMenuOpen(false)}
               className="font-body-md text-body-md text-on-surface-variant hover:text-on-surface py-1"
             >
-              Product
+              {tNav("product")}
             </Link>
             <Link
               href="#features"
               onClick={() => setIsMobileMenuOpen(false)}
               className="font-body-md text-body-md text-on-surface-variant hover:text-on-surface py-1"
             >
-              Features
+              {tNav("features")}
             </Link>
             <Link
               href="#how-it-works"
               onClick={() => setIsMobileMenuOpen(false)}
               className="font-body-md text-body-md text-on-surface-variant hover:text-on-surface py-1"
             >
-              How It Works
+              {tNav("howItWorks")}
             </Link>
             <Link
               href="#pricing"
               onClick={() => setIsMobileMenuOpen(false)}
               className="font-body-md text-body-md text-on-surface-variant hover:text-on-surface py-1"
             >
-              Pricing
+              {tNav("pricing")}
             </Link>
           </nav>
           {user ? (
@@ -258,7 +271,15 @@ export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
                 className="w-full text-center bg-primary-container hover:bg-[#5D1F2C] text-on-primary py-space-sm rounded-lg font-headline-sm text-headline-sm transition-colors flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined text-[18px]">space_dashboard</span>
-                <span>Go to Workspace</span>
+                <span>{tNav("goToWorkspace")}</span>
+              </Link>
+              <Link
+                href="/profile"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full text-center border border-outline-variant/60 text-on-surface py-space-sm rounded-lg font-headline-sm text-headline-sm transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">person</span>
+                <span>{tNav("myProfile")}</span>
               </Link>
               <button
                 type="button"
@@ -269,7 +290,7 @@ export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
                 className="w-full text-center border border-outline-variant/60 text-error py-space-sm rounded-lg font-headline-sm text-headline-sm transition-colors flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined text-[18px]">logout</span>
-                <span>Sign Out</span>
+                <span>{tNav("signOut")}</span>
               </button>
             </div>
           ) : (
@@ -279,14 +300,14 @@ export function MarketingHeader({ initialUser }: MarketingHeaderProps) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="w-full text-center border border-outline-variant/60 text-on-surface py-space-sm rounded-lg font-headline-sm text-headline-sm"
               >
-                Sign In
+                {tNav("signIn")}
               </Link>
               <Link
                 href="/signup"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="w-full text-center bg-primary-container hover:bg-[#5D1F2C] text-on-primary py-space-sm rounded-lg font-headline-sm text-headline-sm"
               >
-                Start Planning Free
+                {tNav("startFree")}
               </Link>
             </div>
           )}

@@ -17,6 +17,7 @@ export type AuthResult =
         id: string;
         name: string;
         email: string;
+        preferredLanguage?: "en" | "hi";
       };
     }
   | {
@@ -24,6 +25,36 @@ export type AuthResult =
       error: string;
       code: string;
     };
+
+export interface UserProfileDTO {
+  id: string;
+  name: string;
+  email: string;
+  preferredLanguage: "en" | "hi";
+  status: "ACTIVE" | "SUSPENDED";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function toUserProfileDTO(user: IUser): UserProfileDTO {
+  const u = user.toObject ? user.toObject() : user;
+  const createdAt = (u.createdAt || user.createdAt) instanceof Date
+    ? (u.createdAt || user.createdAt).toISOString()
+    : new Date(u.createdAt || user.createdAt).toISOString();
+  const updatedAt = (u.updatedAt || user.updatedAt) instanceof Date
+    ? (u.updatedAt || user.updatedAt).toISOString()
+    : new Date(u.updatedAt || user.updatedAt).toISOString();
+
+  return {
+    id: (u._id || user._id).toString(),
+    name: u.name,
+    email: u.email,
+    preferredLanguage: u.preferredLanguage || "en",
+    status: u.status || "ACTIVE",
+    createdAt,
+    updatedAt,
+  };
+}
 
 export class AuthService {
   /**
@@ -87,6 +118,7 @@ export class AuthService {
         id: newUser._id.toString(),
         name: newUser.name,
         email: newUser.email,
+        preferredLanguage: newUser.preferredLanguage || "en",
       }
     };
   }
@@ -106,6 +138,14 @@ export class AuthService {
         success: false, 
         error: "Invalid email or password",
         code: "INVALID_CREDENTIALS"
+      };
+    }
+
+    if (user.status === "SUSPENDED") {
+      return {
+        success: false,
+        error: "Account suspended or missing",
+        code: "ACCOUNT_SUSPENDED",
       };
     }
 
@@ -138,6 +178,7 @@ export class AuthService {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
+        preferredLanguage: user.preferredLanguage || "en",
       }
     };
   }
@@ -175,14 +216,81 @@ export class AuthService {
 
     const user = session.userId as unknown as IUser;
 
+    if (!user || user.status === "SUSPENDED") {
+      return { success: false, code: "ACCOUNT_SUSPENDED", error: "Account suspended or missing" };
+    }
+
     return {
       success: true,
       user: {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
+        preferredLanguage: user.preferredLanguage || "en",
       }
     };
+  }
+
+  /**
+   * Gets user profile for an authenticated user.
+   */
+  static async getProfile(userId: string): Promise<UserProfileDTO | null> {
+    await connectToDatabase();
+
+    const user = await User.findById(userId);
+    if (!user || user.status === "SUSPENDED") {
+      return null;
+    }
+
+    return toUserProfileDTO(user);
+  }
+
+  /**
+   * Updates user profile name and/or preferredLanguage.
+   */
+  static async updateProfile(
+    userId: string,
+    input: { name?: string; preferredLanguage?: "en" | "hi" }
+  ): Promise<UserProfileDTO | null> {
+    await connectToDatabase();
+
+    const user = await User.findById(userId);
+    if (!user || user.status === "SUSPENDED") {
+      return null;
+    }
+
+    const updates: Partial<{ name: string; preferredLanguage: "en" | "hi" }> = {};
+
+    if (input.name !== undefined) {
+      const trimmedName = input.name.trim();
+      if (trimmedName.length < 2 || trimmedName.length > 100) {
+        throw new Error("Name must be between 2 and 100 characters long");
+      }
+      updates.name = trimmedName;
+    }
+
+    if (input.preferredLanguage !== undefined) {
+      if (input.preferredLanguage !== "en" && input.preferredLanguage !== "hi") {
+        throw new Error("Preferred language must be 'en' or 'hi'");
+      }
+      updates.preferredLanguage = input.preferredLanguage;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return toUserProfileDTO(user);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return null;
+    }
+
+    return toUserProfileDTO(updatedUser);
   }
 
   /**

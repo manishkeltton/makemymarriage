@@ -1,6 +1,6 @@
 # Make My Marriage — Project Status
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 This file tracks major implementation milestones. Add new features as work begins and update existing entries as they progress. Dates below indicate when progress was recorded, not necessarily when a feature was originally completed.
 
@@ -32,6 +32,9 @@ This file tracks major implementation milestones. Add new features as work begin
 | V1 In-App Task & Payment Reminders| Completed | 2026-10-02 |
 | V1 RSVP Notifications             | Completed | 2026-10-03 |
 | V1 Guest-Upload Notifications     | Completed | 2026-10-02 |
+| P0 User Profile Management        | Completed | 2026-10-03 |
+| P0 English/Hindi Interface Integration | Completed | 2026-10-03 |
+| P0 Onboarding and Dashboard Localization | Completed | 2026-10-03 |
 | Pending Features & Future Roadmap     | Tracked   | 2026-09-26   |
 
 ## 1. Project scaffold
@@ -447,7 +450,61 @@ This file tracks major implementation milestones. Add new features as work begin
     - `npx vitest run`: **PASS** (28 test files, 242 passed, 100% pass rate).
     - `npm run build`: **PASS** (Next.js Turbopack production build verified, `/api/v1/weddings/[weddingId]/media/[mediaId]` GET route generated).
 
+## 26. P0 User Profile Management
+
+- **Status:** Completed
+- **Last updated:** 2026-10-03
+- **Implemented:** Implemented P0 User Profile Management matching specification `docs/user-profile.md` and approved Stitch UI designs:
+  - **Account-Level Access:** Unrestricted self-service profile page (`/profile`) and REST endpoints (`GET` & `PATCH` `/api/v1/auth/profile`) accessible without requiring an active wedding or wedding-admin role.
+  - **Strict Session Security:** Target user derived exclusively from verified session cookies (`getSessionToken()`). Missing/expired sessions return 401 (`AUTH_REQUIRED`/`SESSION_EXPIRED`), while missing or suspended users return 403 (`ACCOUNT_SUSPENDED`).
+  - **Field Validation & Governance:** Server validation permits updating only `name` (2–100 chars, trimmed, Unicode supported) and `preferredLanguage` (`"en"` | `"hi"`). Forbidden fields (`email`, `passwordHash`, `status`, `isPlatformAdmin`, `_id`, `$set` operators) return 400 (`FORBIDDEN_FIELD_UPDATE`).
+  - **Minimal Data Privacy & Headers:** Exposes `UserProfileDTO` (`id`, `name`, `email`, `preferredLanguage`, `status`, `createdAt`, `updatedAt`) without password hashes or session tokens. Emits `Cache-Control: no-store, private` headers on all responses.
+  - **UI Entry Points & Navigation:** Added "My Profile" entry points across `MarketingHeader.tsx` (desktop dropdown & mobile drawer), `workspace-header.tsx` (interactive user profile avatar dropdown), and `workspace-sidebar.tsx` (footer link & user pill).
+  - **Documentation & Review Reports:** Created `docs/user-profile.md` specification, `docs/reviews/user-profile-review.md` review report, `docs/qa/user-profile-manual-qa.md` manual QA report, `docs/qa/user-profile-final-check.md` final readiness check report, and unit test suite in `src/__tests__/user-profile.test.ts`.
+  - **Scope Boundary:** Completion applies strictly to account-level User Profile Management (`/profile`, name editing, language preference setting). Full English/Hindi interface localization remains a separate pending P0 milestone.
+- **Repository Verification Suite Outcomes:**
+  - `npm run lint`: **PASS** (0 errors, 0 warnings with `--max-warnings=0`).
+  - `npx tsc --noEmit`: **PASS** (0 errors).
+  - `npx vitest run`: **PASS** (29 test files, 250 passed, 100% pass rate).
+  - `npm run build`: **PASS** (Next.js Turbopack production build verified, `/profile` and `/api/v1/auth/profile` routes generated).
+
+## 27. P0 English/Hindi Interface Integration
+
+- **Status:** Completed
+- **Last updated:** 2026-10-03
+- **Implemented:** Implemented P0 English/Hindi Interface Integration matching specification `docs/english-hindi-localization.md` and approved Stitch UI designs:
+  - **Infrastructure & Locale Resolution:** Integrated `next-intl` (v4.14.5) with server/client locale resolution precedence (`User.preferredLanguage` -> `?lang=` -> `mmm_locale` cookie -> `Accept-Language` header -> `"en"` default). Preserved canonical URL paths (`/login`, `/signup`, `/workspace`, `/profile`, `/w/[slug]`) without URL locale prefixes.
+  - **Devanagari Typography & HTML Language:** Dynamically set `<html lang={locale}>` and loaded Noto Sans Devanagari font CSS variables alongside Plus Jakarta Sans to ensure hydration safety and Devanagari rendering.
+  - **1:1 Key Parity & Dictionaries:** Provided complete English (`en.json`) and Hindi (`hi.json`) message dictionaries across `Common`, `Auth`, `Profile`, `Nav`, `Workspace`, `Events`, `Tasks`, `Guests`, `Vendors`, `Expenses`, `Documents`, `Team`, `Settings`, `Billing`, `Errors`, and `Format` namespaces with 100% key parity and identical interpolation placeholders.
+  - **Indian Formatting Utilities:** Created locale-aware formatters (`formatINR`, `formatIndianDate`, `formatIndianNumber`) in `src/lib/formatters.ts` enforcing Indian numbering system (`₹1,50,000` / `₹१,५०,०००`) while preserving integer paise and underlying stored UTC timestamps.
+  - **Component & Page Translations:** Translated `MarketingHeader.tsx`, `workspace-header.tsx`, `workspace-sidebar.tsx`, `/profile/page.tsx`, and auth pages (`/login`, `/signup`, `/forgot-password`, `/reset-password`).
+  - **Code Review Approval (2026-10-03):** Completed formal code review in `docs/reviews/english-hindi-localization-review.md`. Confirmed 0 P0 and 0 P1 findings. Documented 3 P2 findings (`I18N-001`, `I18N-002`, `I18N-003`) and 1 P3 finding (`I18N-004`). Recommended for approval.
+  - **Automated Verification Suite:** Built recursive i18n parity test suite (`src/__tests__/i18n-parity.test.ts`) and locale resolution/formatting test suite (`src/__tests__/locale-resolution.test.ts`).
+  - **Repository Verification Suite Outcomes:**
+    - `npm run lint`: **PASS** (0 errors, 0 warnings with `--max-warnings=0`).
+    - `npx tsc --noEmit`: **PASS** (0 errors).
+    - `npx vitest run`: **PASS** (31 test files, 255 passed, 100% pass rate).
+    - `npm run build`: **PASS** (Next.js Turbopack production build verified).
+
+## 28. P0 Onboarding and Dashboard Localization
+
+- **Status:** Completed
+- **Last updated:** 2026-10-03
+- **Implemented:** Fully localized the Onboarding workspace setup (`/workspace/new`) and main Workspace Dashboard (`/workspace/[weddingId]`) using `next-intl`:
+  - **Onboarding Page (`/workspace/new`):** Localized form labels, progress steps (`Step 01 / 03 • Core Framework`), location zone preview, GST badge, language selection, tooltips, CTAs, and error messages.
+  - **Dynamic Title Generation:** Auto-generated workspace titles adapt dynamically based on selected locale (`groom & bride's Wedding` vs `groom और bride की शादी`), while preserving user-edited custom titles.
+  - **Workspace Dashboard (`/workspace/[weddingId]`):** Localized hero greeting, countdown badge, 4 KPI cards (Events, Tasks, Guests, Spend), empty state next milestone banner, Quick Action buttons, Getting Started Guide steps, task progress section, and 3 foundation preview cards.
+  - **Monetary Unit Safety:** Updated `src/lib/utils/money.ts` `formatINR` function to support locale choice (`"en"` vs `"hi"`) while maintaining integer paise input parameters.
+  - **Automated Verification:** Added unit test suite `src/__tests__/onboarding-dashboard-localization.test.ts` covering 1:1 key parity, paise monetary formatting, date formatting, and auto-generated title interpolation.
+  - **Verification Suite Outcomes:**
+    - `npm run lint`: **PASS** (0 warnings).
+    - `npx tsc --noEmit`: **PASS** (0 errors).
+    - `npx vitest run`: **PASS** (32 test files, 261 passed, 100% pass rate).
+    - `npm run build`: **PASS** (Production build succeeded).
+
 ## Future entries
 
 For each major feature, add a numbered entry with its name, status (`In progress`, `Blocked`, or `Completed`), last updated date, implemented scope, key files where useful, and remaining work or known limitations. Keep the overview and document's last updated date in sync with the entries.
+
+
 

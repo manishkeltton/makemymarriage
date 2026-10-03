@@ -38,12 +38,13 @@ export function paiseToRupees(paise: number): number {
 }
 
 /**
- * Formats integer paise into a human-readable Indian Rupee string (en-IN locale).
- * Example: 2500050 -> "₹25,000.50"
+ * Formats integer paise into a human-readable Indian Rupee string based on locale.
+ * Example: 2500050 -> "₹25,000.50" (en) / "₹२५,०००.५०" (hi)
  */
-export function formatINR(paise: number): string {
+export function formatINR(paise: number, locale: string = "en"): string {
   const rupees = paiseToRupees(paise);
-  return new Intl.NumberFormat("en-IN", {
+  const tag = locale === "hi" ? "hi-IN" : "en-IN";
+  return new Intl.NumberFormat(tag, {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2,

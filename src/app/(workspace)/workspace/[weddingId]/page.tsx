@@ -1,12 +1,14 @@
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { getSessionToken } from "@/lib/auth/session";
 import { AuthService } from "@/lib/services/auth.service";
 import { WeddingService } from "@/modules/weddings/services/wedding.service";
 import { ActionButton } from "@/components/workspace/action-button";
 import { DashboardQuickActions, AddFirstEventButton } from "@/components/workspace/dashboard-quick-actions";
 import { formatINR } from "@/lib/utils/money";
+import { formatIndianDate } from "@/lib/formatters";
 
 export default async function WorkspaceDashboardPage({
   params,
@@ -23,6 +25,9 @@ export default async function WorkspaceDashboardPage({
     redirect("/login");
   }
 
+  const locale = await getLocale();
+  const t = await getTranslations("Dashboard");
+
   const { weddingId } = await params;
   const dashboardResult = await WeddingService.getDashboardSummary(weddingId, session.user.id);
 
@@ -32,7 +37,7 @@ export default async function WorkspaceDashboardPage({
         <div className="w-12 h-12 rounded-full bg-error-container text-on-error-container flex items-center justify-center mx-auto">
           <span className="material-symbols-outlined text-[24px]">error</span>
         </div>
-        <h2 className="text-lg font-headline-md font-bold text-on-surface">Workspace Access Error</h2>
+        <h2 className="text-lg font-headline-md font-bold text-on-surface">{t("accessErrorTitle")}</h2>
         <p className="text-on-surface-variant text-sm">
           {dashboardResult.error || "Wedding workspace not found or membership access denied."}
         </p>
@@ -41,13 +46,13 @@ export default async function WorkspaceDashboardPage({
             href="/workspace/new"
             className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary font-semibold text-xs text-center shadow-xs hover:bg-primary transition-colors"
           >
-            Create New Wedding
+            {t("createWorkspace")}
           </Link>
           <Link
             href="/workspace"
             className="w-full py-2.5 rounded-lg border border-surface-container-high text-on-surface font-semibold text-xs text-center hover:bg-surface-container-low transition-colors"
           >
-            Return to Workspaces
+            {t("returnToWorkspaces")}
           </Link>
         </div>
       </div>
@@ -56,7 +61,7 @@ export default async function WorkspaceDashboardPage({
 
   const { wedding, stats } = dashboardResult.data;
 
-  const formattedDate = new Date(wedding.primaryWeddingDate).toLocaleDateString("en-IN", {
+  const formattedDate = formatIndianDate(wedding.primaryWeddingDate, locale, {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -76,17 +81,17 @@ export default async function WorkspaceDashboardPage({
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-lowest shadow-xs">
                 <span className="w-2 h-2 rounded-full bg-secondary" />
                 <span className="font-label-sm text-[11px] text-secondary uppercase tracking-widest font-semibold">
-                  Workspace Initialized
+                  {t("workspaceInitialized")}
                 </span>
               </div>
               <h1 className="font-display-lg text-2xl sm:text-3xl lg:text-4xl text-on-surface tracking-tight font-bold">
-                Good morning, {session.user.name.split(" ")[0]}
+                {t("greeting", { name: session.user.name.split(" ")[0] })}
               </h1>
               <p className="font-body-lg text-sm sm:text-base text-on-surface-variant flex flex-wrap items-center gap-y-1 gap-x-2.5">
                 <span className="font-semibold text-on-surface">{wedding.title}</span>
                 <span className="text-outline-variant">•</span>
                 <span className="text-primary-container font-semibold">
-                  {wedding.daysRemaining} days to go
+                  {t("daysToGo", { count: wedding.daysRemaining })}
                 </span>
                 <span className="text-outline-variant">•</span>
                 <span>{formattedDate}</span>
@@ -110,10 +115,10 @@ export default async function WorkspaceDashboardPage({
                 </div>
                 <div className="flex flex-col">
                   <span className="font-label-sm text-[10px] text-on-surface-variant uppercase font-semibold">
-                    Countdown
+                    {t("countdownLabel")}
                   </span>
                   <span className="font-headline-sm text-xs text-on-surface font-semibold">
-                    Days Remaining
+                    {t("countdownSublabel")}
                   </span>
                 </div>
               </div>
@@ -126,7 +131,7 @@ export default async function WorkspaceDashboardPage({
           <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-surface-container-high/60 flex flex-col justify-between h-36 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <span className="font-label-sm text-xs text-on-surface-variant uppercase tracking-wider font-semibold">
-                Upcoming Events
+                {t("upcomingEventsCard")}
               </span>
               <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant">
                 <span className="material-symbols-outlined text-[18px]">calendar_today</span>
@@ -134,13 +139,12 @@ export default async function WorkspaceDashboardPage({
             </div>
             <div>
               <div className="font-display-lg text-2xl font-bold text-on-surface">
-                {stats.totalEvents}{" "}
-                <span className="font-body-md text-xs text-on-surface-variant font-normal">
-                  events
-                </span>
+                {t("eventsCount", { count: stats.totalEvents })}
               </div>
               <p className="font-label-md text-xs text-on-surface-variant mt-1">
-                {stats.totalEvents > 0 ? `${stats.totalEvents} scheduled` : "Next: None scheduled"}
+                {stats.totalEvents > 0
+                  ? t("scheduledEvents", { count: stats.totalEvents })
+                  : t("noEventsScheduled")}
               </p>
             </div>
           </div>
@@ -148,7 +152,7 @@ export default async function WorkspaceDashboardPage({
           <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-surface-container-high/60 flex flex-col justify-between h-36 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <span className="font-label-sm text-xs text-on-surface-variant uppercase tracking-wider font-semibold">
-                Tasks
+                {t("tasksCard")}
               </span>
               <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant">
                 <span className="material-symbols-outlined text-[18px]">check_circle</span>
@@ -156,13 +160,10 @@ export default async function WorkspaceDashboardPage({
             </div>
             <div>
               <div className="font-display-lg text-2xl font-bold text-on-surface">
-                {stats.completedTasks} / {stats.totalTasks}{" "}
-                <span className="font-body-md text-xs text-on-surface-variant font-normal">
-                  completed
-                </span>
+                {t("completedTasksFormat", { completed: stats.completedTasks, total: stats.totalTasks })}
               </div>
               <p className="font-label-md text-xs text-on-surface-variant mt-1">
-                {stats.pendingTasks} pending
+                {t("pendingTasksCount", { count: stats.pendingTasks })}
               </p>
             </div>
           </div>
@@ -170,7 +171,7 @@ export default async function WorkspaceDashboardPage({
           <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-surface-container-high/60 flex flex-col justify-between h-36 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <span className="font-label-sm text-xs text-on-surface-variant uppercase tracking-wider font-semibold">
-                Guests
+                {t("guestsCard")}
               </span>
               <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant">
                 <span className="material-symbols-outlined text-[18px]">group</span>
@@ -178,13 +179,10 @@ export default async function WorkspaceDashboardPage({
             </div>
             <div>
               <div className="font-display-lg text-2xl font-bold text-on-surface">
-                {stats.attendingGuests}{" "}
-                <span className="font-body-md text-xs text-on-surface-variant font-normal">
-                  confirmed
-                </span>
+                {t("confirmedGuests", { count: stats.attendingGuests })}
               </div>
               <p className="font-label-md text-xs text-on-surface-variant mt-1">
-                {stats.totalGuests} households invited
+                {t("invitedHouseholds", { count: stats.totalGuests })}
               </p>
             </div>
           </div>
@@ -192,7 +190,7 @@ export default async function WorkspaceDashboardPage({
           <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-surface-container-high/60 flex flex-col justify-between h-36 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <span className="font-label-sm text-xs text-on-surface-variant uppercase tracking-wider font-semibold">
-                Wedding Spend
+                {t("spendCard")}
               </span>
               <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant">
                 <span className="material-symbols-outlined text-[18px]">payments</span>
@@ -200,16 +198,16 @@ export default async function WorkspaceDashboardPage({
             </div>
             <div>
               <div className="font-display-lg text-2xl font-bold text-on-surface">
-                {formatINR(stats.totalBudgetPaise)}{" "}
+                {formatINR(stats.totalBudgetPaise, locale)}{" "}
                 <span className="font-body-md text-xs text-on-surface-variant font-normal">
-                  tracked
+                  {t("trackedSpend")}
                 </span>
               </div>
               <p className="font-label-md text-xs text-on-surface-variant mt-1">
-                {formatINR(stats.totalPaidPaise)} paid
+                {t("paidSpend", { amount: formatINR(stats.totalPaidPaise, locale) })}
                 {stats.overduePaymentsCount > 0 && (
                   <span className="text-error font-semibold ml-1 font-mono text-[11px]">
-                    ({stats.overduePaymentsCount} overdue)
+                    {t("overduePayments", { count: stats.overduePaymentsCount })}
                   </span>
                 )}
               </p>
@@ -253,14 +251,13 @@ export default async function WorkspaceDashboardPage({
               <div className="relative z-10 max-w-xl space-y-4">
                 <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-xs font-semibold">
                   <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
-                  <span>Next Milestone</span>
+                  <span>{t("nextMilestoneBadge")}</span>
                 </div>
                 <h2 className="font-headline-lg text-xl sm:text-2xl text-on-surface font-bold tracking-tight">
-                  Your wedding workspace is ready.
+                  {t("emptyTitle")}
                 </h2>
                 <p className="font-body-lg text-sm text-on-surface-variant leading-relaxed">
-                  Start by adding your wedding events. We’ll help you organize tasks, invitations,
-                  and expenses around each ceremony.
+                  {t("emptyBody")}
                 </p>
                 <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   <AddFirstEventButton />
@@ -268,7 +265,7 @@ export default async function WorkspaceDashboardPage({
                     <span className="material-symbols-outlined text-[18px] mr-1 text-secondary">
                       verified
                     </span>
-                    <span>Setup takes under 2 minutes</span>
+                    <span>{t("setupTimeHint")}</span>
                   </div>
                 </div>
               </div>
@@ -276,7 +273,7 @@ export default async function WorkspaceDashboardPage({
               {/* Quick Actions Footer */}
               <div className="relative z-10 mt-8 pt-6 bg-surface-container-low/50 -mx-6 -mb-6 sm:-mx-8 sm:-mb-8 md:-mx-10 md:-mb-10 p-6 md:px-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-surface-container-high/40">
                 <span className="font-label-sm text-xs text-on-surface-variant uppercase font-semibold tracking-wider">
-                  Quick Actions
+                  {t("quickActionsHeader")}
                 </span>
                 <DashboardQuickActions />
               </div>
@@ -287,14 +284,14 @@ export default async function WorkspaceDashboardPage({
               <div className="flex items-center justify-between pb-4 border-b border-surface-container-high/40 mb-4">
                 <div>
                   <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-semibold">
-                    Foundations
+                    {t("guideLabel")}
                   </span>
                   <h3 className="font-headline-sm text-base text-on-surface font-bold">
-                    Getting Started Guide
+                    {t("guideTitle")}
                   </h3>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-xs font-semibold">
-                  0 / 4
+                  {t("guideProgress", { completed: 0, total: 4 })}
                 </span>
               </div>
 
@@ -306,14 +303,14 @@ export default async function WorkspaceDashboardPage({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <span className="font-headline-sm text-xs text-on-surface font-semibold truncate">
-                        Schedule Ceremonies &amp; Muhurat
+                        {t("step1Title")}
                       </span>
                       <span className="font-label-sm text-[9px] px-1.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-semibold shrink-0">
-                        Next Up
+                        {t("step1NextUp")}
                       </span>
                     </div>
                     <p className="font-body-sm text-[11px] text-on-surface-variant mt-0.5 leading-snug">
-                      Define key functions: Sangeet, Mehendi, Haldi &amp; Phere.
+                      {t("step1Body")}
                     </p>
                   </div>
                 </div>
@@ -324,10 +321,10 @@ export default async function WorkspaceDashboardPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="font-headline-sm text-xs text-on-surface font-semibold truncate block">
-                      Build Household Guest List
+                      {t("step2Title")}
                     </span>
                     <p className="font-body-sm text-[11px] text-on-surface-variant mt-0.5 leading-snug">
-                      Group attendees by family units for seamless RSVPs.
+                      {t("step2Body")}
                     </p>
                   </div>
                 </div>
@@ -338,10 +335,10 @@ export default async function WorkspaceDashboardPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="font-headline-sm text-xs text-on-surface font-semibold truncate block">
-                      Set High-Level Budget
+                      {t("step3Title")}
                     </span>
                     <p className="font-body-sm text-[11px] text-on-surface-variant mt-0.5 leading-snug">
-                      Establish spending targets across catering, decor, and venue.
+                      {t("step3Body")}
                     </p>
                   </div>
                 </div>
@@ -352,10 +349,10 @@ export default async function WorkspaceDashboardPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="font-headline-sm text-xs text-on-surface font-semibold truncate block">
-                      Invite Family Leads
+                      {t("step4Title")}
                     </span>
                     <p className="font-body-sm text-[11px] text-on-surface-variant mt-0.5 leading-snug">
-                      Delegate coordination roles to siblings and key coordinators.
+                      {t("step4Body")}
                     </p>
                   </div>
                 </div>
@@ -365,11 +362,31 @@ export default async function WorkspaceDashboardPage({
         ) : null}
 
         <section className="rounded-xl border border-outline-variant/60 bg-white p-6">
-          <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">Task progress</h2><Link href={`/workspace/${weddingId}/tasks`} className="text-sm text-primary-container underline">View all tasks</Link></div>
-          <p className="my-3 text-sm">{stats.completedTasks} of {stats.totalTasks} completed · {stats.taskProgress}% · {stats.overdueTasks} overdue</p>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold">{t("taskProgressTitle")}</h2>
+            <Link href={`/workspace/${weddingId}/tasks`} className="text-sm text-primary-container underline">
+              {t("viewAllTasks")}
+            </Link>
+          </div>
+          <p className="my-3 text-sm">
+            {t("taskProgressDetail", {
+              completed: stats.completedTasks,
+              total: stats.totalTasks,
+              percent: stats.taskProgress,
+              overdue: stats.overdueTasks,
+            })}
+          </p>
           <progress value={stats.completedTasks} max={Math.max(1, stats.totalTasks)} className="w-full accent-primary-container" aria-label="Task completion" />
-          <ul className="mt-4 space-y-2">{dashboardResult.data.overdueTaskSummary?.map(task => <li key={task.id}><Link className="text-sm text-error underline" href={`/workspace/${weddingId}/tasks?taskId=${task.id}`}>{task.title} · due {task.dueAt ? new Date(task.dueAt).toLocaleDateString("en-IN") : ""}</Link></li>)}</ul>
-          {stats.overdueTasks === 0 && <p className="mt-3 text-sm text-on-surface-variant">No overdue tasks.</p>}
+          <ul className="mt-4 space-y-2">
+            {dashboardResult.data.overdueTaskSummary?.map(task => (
+              <li key={task.id}>
+                <Link className="text-sm text-error underline" href={`/workspace/${weddingId}/tasks?taskId=${task.id}`}>
+                  {task.title} · {task.dueAt ? t("dueFormat", { date: formatIndianDate(task.dueAt, locale) }) : ""}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {stats.overdueTasks === 0 && <p className="mt-3 text-sm text-on-surface-variant">{t("noOverdueTasks")}</p>}
         </section>
 
         {/* 3 Foundation Preview Cards */}
@@ -380,11 +397,10 @@ export default async function WorkspaceDashboardPage({
                 <span className="material-symbols-outlined text-[20px]">villa</span>
               </div>
               <h4 className="font-headline-sm text-base text-on-surface font-bold">
-                Venue &amp; Logistics
+                {t("venueCardTitle")}
               </h4>
               <p className="font-body-sm text-xs text-on-surface-variant leading-relaxed">
-                Link venues to specific ceremonies and map rooming configurations for out-of-town
-                guests.
+                {t("venueCardBody")}
               </p>
             </div>
             <div className="pt-4">
@@ -392,7 +408,7 @@ export default async function WorkspaceDashboardPage({
                 href={`/workspace/${weddingId}/events`}
                 className="font-headline-sm text-xs text-primary-container font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
-                <span>Configure venues</span>
+                <span>{t("configureVenues")}</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </Link>
             </div>
@@ -404,11 +420,10 @@ export default async function WorkspaceDashboardPage({
                 <span className="material-symbols-outlined text-[20px]">contacts</span>
               </div>
               <h4 className="font-headline-sm text-base text-on-surface font-bold">
-                Vendor Procurement
+                {t("vendorCardTitle")}
               </h4>
               <p className="font-body-sm text-xs text-on-surface-variant leading-relaxed">
-                Store contracts, milestone payment schedules, and arrival operational checklists in
-                one ledger.
+                {t("vendorCardBody")}
               </p>
             </div>
             <div className="pt-4">
@@ -416,7 +431,7 @@ export default async function WorkspaceDashboardPage({
                 href={`/workspace/${weddingId}/vendors`}
                 className="font-headline-sm text-xs text-primary-container font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
-                <span>Browse directory</span>
+                <span>{t("browseDirectory")}</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </Link>
             </div>
@@ -428,19 +443,18 @@ export default async function WorkspaceDashboardPage({
                 <span className="material-symbols-outlined text-[20px]">mark_email_read</span>
               </div>
               <h4 className="font-headline-sm text-base text-on-surface font-bold">
-                Digital Invites &amp; RSVP
+                {t("inviteCardTitle")}
               </h4>
               <p className="font-body-sm text-xs text-on-surface-variant leading-relaxed">
-                Set up multi-ceremony invitations, WhatsApp dispatch templates, and dietary
-                intake.
+                {t("inviteCardBody")}
               </p>
             </div>
             <div className="pt-4">
               <ActionButton
-                message="Digital invitations module coming next!"
+                message={t("invitesComingSoon")}
                 className="font-headline-sm text-xs text-primary-container font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
-                <span>Design invitations</span>
+                <span>{t("designInvitations")}</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </ActionButton>
             </div>

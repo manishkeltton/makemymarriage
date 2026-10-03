@@ -47,9 +47,11 @@ export function toWeddingDTO(wedding: IWedding): WeddingDTO {
     groom: {
       name: wedding.groom?.name || "",
     },
-    primaryWeddingDate: wedding.primaryWeddingDate instanceof Date
+    primaryWeddingDate: (wedding.primaryWeddingDate instanceof Date && !isNaN(wedding.primaryWeddingDate.getTime()))
       ? wedding.primaryWeddingDate.toISOString()
-      : new Date(wedding.primaryWeddingDate).toISOString(),
+      : (wedding.primaryWeddingDate && !isNaN(new Date(wedding.primaryWeddingDate).getTime()))
+      ? new Date(wedding.primaryWeddingDate).toISOString()
+      : new Date().toISOString(),
     generalLocation: loc
       ? {
           name: loc.name,

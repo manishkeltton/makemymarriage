@@ -3,8 +3,12 @@
 import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 function ResetPasswordForm() {
+  const tAuth = useTranslations("Auth");
+  const tCommon = useTranslations("Common");
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
@@ -14,25 +18,25 @@ function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(!token ? "Invalid or missing reset token. Please request a new password reset link." : "");
+  const [error, setError] = useState(!token ? tAuth("resetTokenInvalid") : "");
   const [isTokenInvalid, setIsTokenInvalid] = useState(!token);
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) {
-      setError("Invalid or missing reset token.");
+      setError(tAuth("resetTokenInvalid"));
       setIsTokenInvalid(true);
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long.");
+      setError(tCommon("error"));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(tCommon("error"));
       return;
     }
 
@@ -53,7 +57,7 @@ function ResetPasswordForm() {
         if (code === "RESET_TOKEN_INVALID" || code === "RESET_TOKEN_EXPIRED") {
           setIsTokenInvalid(true);
         }
-        throw new Error(data.error?.message || "Failed to reset password. Link may be expired or invalid.");
+        throw new Error(data.error?.message || tAuth("resetTokenInvalid"));
       }
 
       setSuccess(true);
@@ -61,7 +65,7 @@ function ResetPasswordForm() {
         router.push("/login?reset=success");
       }, 2500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setError(err instanceof Error ? err.message : tCommon("error"));
     } finally {
       setLoading(false);
     }
@@ -73,14 +77,11 @@ function ResetPasswordForm() {
       <div className="flex flex-col items-center text-center mb-6 sm:mb-8">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm font-label-md uppercase tracking-wider mb-3">
           <span className="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
-          CREATE NEW PASSWORD
+          MakeMyMarriage
         </div>
         <h1 className="font-headline-lg text-headline-lg text-on-surface font-semibold tracking-tight">
-          Reset your password
+          {tAuth("resetPassword")}
         </h1>
-        <p className="font-body-sm text-body-sm text-on-surface-variant mt-2 max-w-xs leading-relaxed">
-          Choose a strong password with at least 8 characters to secure your account.
-        </p>
       </div>
 
       {/* Main Card */}
@@ -91,12 +92,8 @@ function ResetPasswordForm() {
               <span className="material-symbols-outlined text-[28px]">check_circle</span>
             </div>
             <div>
-              <h2 className="font-title-lg text-title-lg font-bold text-on-surface">Password Reset Successful</h2>
               <p className="font-body-sm text-body-sm text-on-surface-variant mt-2 leading-relaxed">
-                Your password has been updated. All active sessions have been securely logged out.
-              </p>
-              <p className="font-body-xs text-body-xs text-primary-container font-medium mt-3">
-                Redirecting to Sign In...
+                {tAuth("resetSuccess")}
               </p>
             </div>
             <div className="pt-4 border-t border-outline-variant/30">
@@ -104,7 +101,7 @@ function ResetPasswordForm() {
                 href="/login"
                 className="w-full inline-flex items-center justify-center gap-2 h-11 bg-primary-container text-on-primary font-label-md text-label-md rounded-xl hover:bg-primary transition-all shadow-md shadow-primary/20"
               >
-                Sign In Now
+                {tAuth("signIn")}
               </Link>
             </div>
           </div>
@@ -114,9 +111,8 @@ function ResetPasswordForm() {
               <span className="material-symbols-outlined text-[28px]">link_off</span>
             </div>
             <div>
-              <h2 className="font-title-lg text-title-lg font-bold text-on-surface">Link Invalid or Expired</h2>
               <p className="font-body-sm text-body-sm text-on-surface-variant mt-2 leading-relaxed">
-                {error || "This password reset link is invalid, expired, or has already been used."}
+                {error || tAuth("resetTokenInvalid")}
               </p>
             </div>
             <div className="pt-4 border-t border-outline-variant/30 flex flex-col gap-2">
@@ -124,13 +120,13 @@ function ResetPasswordForm() {
                 href="/forgot-password"
                 className="w-full inline-flex items-center justify-center gap-2 h-11 bg-primary-container text-on-primary font-label-md text-label-md rounded-xl hover:bg-primary transition-all shadow-md shadow-primary/20"
               >
-                Request New Reset Link
+                {tAuth("sendResetLink")}
               </Link>
               <Link
                 href="/login"
                 className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors mt-2"
               >
-                Back to Sign In
+                {tAuth("signIn")}
               </Link>
             </div>
           </div>
@@ -140,7 +136,7 @@ function ResetPasswordForm() {
               <div className="mb-5 p-3 rounded-xl bg-error-container text-on-error-container text-body-sm font-body-sm flex items-start gap-2.5">
                 <span className="material-symbols-outlined text-[18px] text-error shrink-0 mt-0.5">error</span>
                 <div className="flex-1 text-left">
-                  <p className="font-semibold text-label-md">Reset Failed</p>
+                  <p className="font-semibold text-label-md">{tCommon("error")}</p>
                   <p className="text-body-sm text-on-error-container/90">{error}</p>
                 </div>
               </div>
@@ -150,7 +146,7 @@ function ResetPasswordForm() {
               {/* New Password */}
               <div className="space-y-1.5">
                 <label className="block font-label-md text-label-md text-on-surface" htmlFor="password">
-                  New Password
+                  {tAuth("newPasswordLabel")}
                 </label>
                 <div className="relative">
                   <input
@@ -162,7 +158,7 @@ function ResetPasswordForm() {
                     maxLength={100}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 8 characters"
+                    placeholder={tAuth("passwordPlaceholder")}
                     className="w-full h-11 pl-3.5 pr-11 rounded-xl bg-surface-container-lowest border border-outline-variant/60 text-on-surface font-body-md text-body-md placeholder:text-outline/70 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all shadow-xs"
                   />
                   <button
@@ -181,7 +177,7 @@ function ResetPasswordForm() {
               {/* Confirm Password */}
               <div className="space-y-1.5">
                 <label className="block font-label-md text-label-md text-on-surface" htmlFor="confirmPassword">
-                  Confirm New Password
+                  {tAuth("confirmPasswordLabel")}
                 </label>
                 <div className="relative">
                   <input
@@ -193,7 +189,7 @@ function ResetPasswordForm() {
                     maxLength={100}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter new password"
+                    placeholder={tAuth("passwordPlaceholder")}
                     className="w-full h-11 pl-3.5 pr-11 rounded-xl bg-surface-container-lowest border border-outline-variant/60 text-on-surface font-body-md text-body-md placeholder:text-outline/70 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all shadow-xs"
                   />
                   <button
@@ -221,10 +217,10 @@ function ResetPasswordForm() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor"></path>
                       </svg>
-                      Resetting Password...
+                      {tCommon("loading")}
                     </span>
                   ) : (
-                    "Reset Password"
+                    tAuth("resetPasswordSubmit")
                   )}
                 </button>
               </div>
@@ -232,12 +228,12 @@ function ResetPasswordForm() {
 
             <div className="mt-6 pt-5 bg-surface-container-low/40 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 px-6 sm:px-8 py-4 rounded-b-2xl flex items-center justify-center text-center border-t border-outline-variant/30">
               <p className="font-body-sm text-body-sm text-on-surface-variant">
-                Remember your password?{" "}
+                {tAuth("alreadyHaveAccount")}{" "}
                 <Link
                   href="/login"
                   className="font-semibold text-primary-container hover:text-primary transition-colors ml-1 inline-flex items-center gap-0.5"
                 >
-                  Sign in
+                  {tAuth("signIn")}
                   <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                 </Link>
               </p>
@@ -250,8 +246,9 @@ function ResetPasswordForm() {
 }
 
 export default function ResetPasswordPage() {
+  const tCommon = useTranslations("Common");
   return (
-    <Suspense fallback={<div className="p-4 text-center text-xs text-on-surface-variant">Loading page...</div>}>
+    <Suspense fallback={<div className="p-4 text-center text-xs text-on-surface-variant">{tCommon("loading")}</div>}>
       <ResetPasswordForm />
     </Suspense>
   );

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/marketing/Logo";
 import { WeddingSwitcher } from "./wedding-switcher";
 
@@ -24,6 +25,7 @@ export function WorkspaceSidebar({
   isOpenMobile = false,
   onCloseMobile,
 }: WorkspaceSidebarProps) {
+  const tNav = useTranslations("Nav");
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -44,26 +46,26 @@ export function WorkspaceSidebar({
   const navPrefix = weddingId ? `/workspace/${weddingId}` : "/workspace";
 
   const planningNav = [
-    { name: "Dashboard", href: navPrefix, icon: "space_dashboard", exact: true },
-    { name: "Events", href: `${navPrefix}/events`, icon: "calendar_month", comingSoon: false },
-    { name: "Tasks", href: `${navPrefix}/tasks`, icon: "check_circle", comingSoon: false },
-    { name: "Guests", href: `${navPrefix}/guests`, icon: "group", comingSoon: false },
-    { name: "Vendors", href: `${navPrefix}/vendors`, icon: "storefront", comingSoon: false },
-    { name: "Expenses", href: `${navPrefix}/expenses`, icon: "payments", comingSoon: false },
-    { name: "Documents", href: `${navPrefix}/documents`, icon: "description", comingSoon: false },
+    { name: tNav("dashboard"), href: navPrefix, icon: "space_dashboard", exact: true },
+    { name: tNav("events"), href: `${navPrefix}/events`, icon: "calendar_month", comingSoon: false },
+    { name: tNav("tasks"), href: `${navPrefix}/tasks`, icon: "check_circle", comingSoon: false },
+    { name: tNav("guests"), href: `${navPrefix}/guests`, icon: "group", comingSoon: false },
+    { name: tNav("vendors"), href: `${navPrefix}/vendors`, icon: "storefront", comingSoon: false },
+    { name: tNav("expenses"), href: `${navPrefix}/expenses`, icon: "payments", comingSoon: false },
+    { name: tNav("documents"), href: `${navPrefix}/documents`, icon: "description", comingSoon: false },
   ];
 
   const guestExperienceNav = [
-    { name: "Wedding Website", href: `${navPrefix}/website`, icon: "language", comingSoon: false },
-    { name: "Gallery", href: `${navPrefix}/gallery`, icon: "photo_library", comingSoon: false },
-    { name: "Guestbook", href: `${navPrefix}/guestbook`, icon: "edit_note", comingSoon: false },
-    { name: "Emergency", href: `${navPrefix}/emergency`, icon: "emergency", comingSoon: false },
+    { name: tNav("website"), href: `${navPrefix}/website`, icon: "language", comingSoon: false },
+    { name: tNav("gallery"), href: `${navPrefix}/gallery`, icon: "photo_library", comingSoon: false },
+    { name: tNav("guestbook"), href: `${navPrefix}/guestbook`, icon: "edit_note", comingSoon: false },
+    { name: tNav("emergency"), href: `${navPrefix}/emergency`, icon: "emergency", comingSoon: false },
   ];
 
   const governanceNav = [
-    { name: "Team", href: `${navPrefix}/team`, icon: "shield_person", comingSoon: false },
-    { name: "Plan & Billing", href: `${navPrefix}/settings/billing`, icon: "credit_card", comingSoon: false },
-    { name: "Settings", href: `${navPrefix}/settings`, icon: "tune", exact: false },
+    { name: tNav("team"), href: `${navPrefix}/team`, icon: "shield_person", comingSoon: false },
+    { name: tNav("billing"), href: `${navPrefix}/settings/billing`, icon: "credit_card", comingSoon: false },
+    { name: tNav("settings"), href: `${navPrefix}/settings`, icon: "tune", exact: false },
   ];
 
   const checkActive = (item: { href: string; exact?: boolean }) => {
@@ -109,14 +111,14 @@ export function WorkspaceSidebar({
           <nav className="space-y-0.5">
             <div className="px-space-sm pb-1">
               <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-semibold">
-                Planning
+                {tNav("planning")}
               </span>
             </div>
             {planningNav.map((item) => {
               const isActive = checkActive(item);
               return (
                 <Link
-                  key={item.name}
+                  key={item.href}
                   href={item.comingSoon ? "#" : item.href}
                   onClick={(e) => {
                     if (item.comingSoon) {
@@ -151,14 +153,14 @@ export function WorkspaceSidebar({
           <nav className="space-y-0.5">
             <div className="px-space-sm pb-1">
               <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-semibold">
-                Guest Experience
+                {tNav("guestExperience")}
               </span>
             </div>
             {guestExperienceNav.map((item) => {
               const isActive = checkActive(item);
               return (
                 <Link
-                  key={item.name}
+                  key={item.href}
                   href={item.comingSoon ? "#" : item.href}
                   onClick={(e) => {
                     if (item.comingSoon) {
@@ -193,14 +195,14 @@ export function WorkspaceSidebar({
           <nav className="space-y-0.5">
             <div className="px-space-sm pb-1">
               <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-semibold">
-                Governance
+                {tNav("governance")}
               </span>
             </div>
             {governanceNav.map((item) => {
               const isActive = checkActive(item);
               return (
                 <Link
-                  key={item.name}
+                  key={item.href}
                   href={item.comingSoon ? "#" : item.href}
                   onClick={(e) => {
                     if (item.comingSoon) {
@@ -233,6 +235,17 @@ export function WorkspaceSidebar({
 
       {/* Footer Area */}
       <div className="p-space-sm space-y-space-xs border-t border-surface-container-high/60">
+        <Link
+          href="/profile"
+          onClick={() => {
+            if (onCloseMobile) onCloseMobile();
+          }}
+          className="flex items-center gap-space-sm px-space-sm py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface font-body-sm text-xs transition-colors"
+        >
+          <span className="material-symbols-outlined text-[20px]">person</span>
+          <span>{tNav("myProfile")}</span>
+        </Link>
+
         <a
           href="#"
           onClick={(e) => {
@@ -242,12 +255,19 @@ export function WorkspaceSidebar({
           className="flex items-center gap-space-sm px-space-sm py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface font-body-sm text-xs transition-colors"
         >
           <span className="material-symbols-outlined text-[20px]">help_outline</span>
-          <span>Help &amp; Support</span>
+          <span>{tNav("helpSupport")}</span>
         </a>
 
         {/* Signed-in User Pill */}
         <div className="flex items-center justify-between p-space-sm rounded-lg bg-surface-container-low">
-          <div className="flex items-center gap-space-sm min-w-0">
+          <Link
+            href="/profile"
+            onClick={() => {
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="flex items-center gap-space-sm min-w-0 flex-1 hover:opacity-80 transition-opacity"
+            title={tNav("myProfile")}
+          >
             <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase">
               {user?.name?.[0] || "U"}
             </div>
@@ -259,13 +279,13 @@ export function WorkspaceSidebar({
                 {role}
               </span>
             </div>
-          </div>
+          </Link>
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            title="Sign Out"
-            className="p-1 rounded text-on-surface-variant hover:text-primary-container hover:bg-surface-container transition-colors"
+            title={tNav("signOut")}
+            className="p-1 rounded text-on-surface-variant hover:text-primary-container hover:bg-surface-container transition-colors shrink-0"
           >
             <span className="material-symbols-outlined text-[18px]">logout</span>
           </button>

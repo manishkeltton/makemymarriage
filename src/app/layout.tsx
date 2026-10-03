@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Noto_Sans_Devanagari } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
+import { getEffectiveLocale } from "@/lib/i18n/locale-resolver";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -7,12 +10,18 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
 });
 
+const notoSansDevanagari = Noto_Sans_Devanagari({
+  subsets: ["devanagari"],
+  variable: "--font-noto-devanagari",
+});
+
 export const metadata: Metadata = {
   title: {
     default: "MakeMyMarriage - Plan your wedding. Together.",
-    template: "%s | MakeMyMarriage"
+    template: "%s | MakeMyMarriage",
   },
-  description: "MakeMyMarriage is a shared wedding planning workspace for Indian couples. Manage events, tasks, guests, expenses, and vendors all in one place.",
+  description:
+    "MakeMyMarriage is a shared wedding planning workspace for Indian couples. Manage events, tasks, guests, expenses, and vendors all in one place.",
   metadataBase: new URL("https://makemymarriage.com"),
   openGraph: {
     title: "MakeMyMarriage - Plan your wedding. Together.",
@@ -26,14 +35,21 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "MakeMyMarriage",
     description: "A shared wedding planning workspace for Indian couples.",
-  }
+  },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getEffectiveLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="en" className={plusJakartaSans.variable}>
+    <html
+      lang={locale}
+      className={`${plusJakartaSans.variable} ${notoSansDevanagari.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
@@ -41,7 +57,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

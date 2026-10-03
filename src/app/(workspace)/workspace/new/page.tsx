@@ -3,10 +3,14 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/marketing/Logo";
 
 export default function NewWeddingPage() {
   const router = useRouter();
+  const t = useTranslations("Onboarding");
+  const tNav = useTranslations("Nav");
+
   const [formData, setFormData] = useState({
     brideName: "",
     groomName: "",
@@ -27,11 +31,11 @@ export default function NewWeddingPage() {
 
     let autoTitle = updated.weddingTitle;
     if (bride && groom) {
-      autoTitle = `${groom} & ${bride}'s Wedding`;
+      autoTitle = t("titlePatternCouple", { groom, bride });
     } else if (bride) {
-      autoTitle = `${bride}'s Wedding Workspace`;
+      autoTitle = t("titlePatternBride", { bride });
     } else if (groom) {
-      autoTitle = `${groom}'s Wedding Workspace`;
+      autoTitle = t("titlePatternGroom", { groom });
     }
 
     setFormData({
@@ -45,7 +49,7 @@ export default function NewWeddingPage() {
     setError(null);
 
     if (!formData.brideName || !formData.groomName || !formData.weddingDate) {
-      setError("Please fill in all required fields.");
+      setError(t("requiredFieldsError"));
       return;
     }
 
@@ -56,7 +60,12 @@ export default function NewWeddingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: formData.weddingTitle || `${formData.groomName} & ${formData.brideName}'s Wedding`,
+          title:
+            formData.weddingTitle ||
+            t("titlePatternCouple", {
+              groom: formData.groomName,
+              bride: formData.brideName,
+            }),
           bride: { name: formData.brideName },
           groom: { name: formData.groomName },
           primaryWeddingDate: formData.weddingDate,
@@ -76,11 +85,11 @@ export default function NewWeddingPage() {
         router.push(`/workspace/${newWeddingId}`);
         router.refresh();
       } else {
-        setError(data.error?.message || "Failed to create wedding workspace");
+        setError(data.error?.message || t("genericError"));
       }
     } catch (err) {
       console.error("Error creating wedding:", err);
-      setError("An unexpected error occurred. Please try again.");
+      setError(t("genericError"));
     } finally {
       setLoading(false);
     }
@@ -99,7 +108,7 @@ export default function NewWeddingPage() {
               MakeMyMarriage
             </span>
             <span className="font-label-sm text-[11px] px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant uppercase tracking-wider font-semibold">
-              Workspace
+              {tNav("workspace")}
             </span>
           </div>
         </div>
@@ -108,13 +117,13 @@ export default function NewWeddingPage() {
         <div className="text-center mb-6 flex flex-col items-center space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-xs tracking-wider uppercase font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-primary-container" />
-            Let&apos;s Set Up Your Wedding
+            {t("badge")}
           </div>
           <h1 className="font-headline-lg text-2xl sm:text-3xl text-on-surface tracking-tight font-bold">
-            Start with the essentials.
+            {t("title")}
           </h1>
           <p className="font-body-md text-sm text-on-surface-variant max-w-md">
-            You can add events, guests, vendors and everything else once your workspace is ready.
+            {t("subtitle")}
           </p>
         </div>
 
@@ -124,10 +133,10 @@ export default function NewWeddingPage() {
           <div className="flex items-center justify-between pb-3 border-b border-surface-container-high/40">
             <div className="flex items-center gap-2">
               <span className="font-label-sm text-xs text-primary-container uppercase font-bold">
-                Step 01
+                {t("stepPrefix")}
               </span>
               <span className="font-label-sm text-xs text-on-surface-variant">
-                / 03 • Core Framework
+                {t("stepSuffix")}
               </span>
             </div>
             <div className="flex items-center gap-1">
@@ -152,13 +161,13 @@ export default function NewWeddingPage() {
                   className="font-label-md text-xs font-semibold text-on-surface-variant"
                   htmlFor="brideName"
                 >
-                  Bride&apos;s Legal / Preferred Name *
+                  {t("brideLabel")}
                 </label>
                 <input
                   id="brideName"
                   type="text"
                   required
-                  placeholder="e.g. Meera Kapoor"
+                  placeholder={t("bridePlaceholder")}
                   value={formData.brideName}
                   onChange={(e) => handleNameChange("brideName", e.target.value)}
                   className="w-full h-10 px-3 rounded-lg bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-sm shadow-xs focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container"
@@ -170,13 +179,13 @@ export default function NewWeddingPage() {
                   className="font-label-md text-xs font-semibold text-on-surface-variant"
                   htmlFor="groomName"
                 >
-                  Groom&apos;s Legal / Preferred Name *
+                  {t("groomLabel")}
                 </label>
                 <input
                   id="groomName"
                   type="text"
                   required
-                  placeholder="e.g. Aarav Sharma"
+                  placeholder={t("groomPlaceholder")}
                   value={formData.groomName}
                   onChange={(e) => handleNameChange("groomName", e.target.value)}
                   className="w-full h-10 px-3 rounded-lg bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-sm shadow-xs focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container"
@@ -191,24 +200,24 @@ export default function NewWeddingPage() {
                   className="font-label-md text-xs font-semibold text-on-surface-variant"
                   htmlFor="weddingTitle"
                 >
-                  Workspace Identifier *
+                  {t("titleLabel")}
                 </label>
                 <span className="font-label-sm text-[11px] text-secondary flex items-center gap-1 font-semibold">
-                  <span className="material-symbols-outlined text-[14px]">check_circle</span> Auto-generated
+                  <span className="material-symbols-outlined text-[14px]">check_circle</span> {t("autoGenerated")}
                 </span>
               </div>
               <input
                 id="weddingTitle"
                 type="text"
                 required
-                placeholder="e.g. Aarav & Meera Wedding"
+                placeholder={t("titlePlaceholder")}
                 value={formData.weddingTitle}
                 onChange={(e) => setFormData({ ...formData, weddingTitle: e.target.value })}
                 className="w-full h-10 px-3 rounded-lg bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-sm shadow-xs focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container"
               />
               <p className="font-body-sm text-[11px] text-on-surface-variant flex items-center gap-1 mt-0.5">
                 <span className="material-symbols-outlined text-[15px] text-outline">info</span>
-                This will be your shared workspace name visible to family leads &amp; vendors.
+                {t("titleHint")}
               </p>
             </div>
 
@@ -219,7 +228,7 @@ export default function NewWeddingPage() {
                   className="font-label-md text-xs font-semibold text-on-surface-variant"
                   htmlFor="weddingDate"
                 >
-                  Target Muhurat Date *
+                  {t("dateLabel")}
                 </label>
                 <div className="relative flex items-center">
                   <input
@@ -241,13 +250,13 @@ export default function NewWeddingPage() {
                   className="font-label-md text-xs font-semibold text-on-surface-variant"
                   htmlFor="weddingLocation"
                 >
-                  Primary City / Hub
+                  {t("cityLabel")}
                 </label>
                 <div className="relative flex items-center">
                   <input
                     id="weddingLocation"
                     type="text"
-                    placeholder="e.g. New Delhi, Udaipur"
+                    placeholder={t("cityPlaceholder")}
                     value={formData.weddingLocation}
                     onChange={(e) => setFormData({ ...formData, weddingLocation: e.target.value })}
                     className="w-full h-10 pl-3 pr-9 rounded-lg bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-sm shadow-xs focus:outline-none focus:border-primary-container"
@@ -266,18 +275,18 @@ export default function NewWeddingPage() {
                   apartment
                 </span>
                 <span className="font-body-sm text-on-surface-variant">
-                  Detected Zone: <strong>Hospitality Sector (IST / UTC+5:30)</strong>
+                  {t("detectedZone")} <strong>{t("zoneDetails")}</strong>
                 </span>
               </div>
               <span className="font-label-sm text-[10px] px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-semibold">
-                GST Pre-configured
+                {t("gstBadge")}
               </span>
             </div>
 
             {/* Preferred Language Buttons */}
             <div className="flex flex-col gap-1.5 pt-1">
               <label className="font-label-md text-xs font-semibold text-on-surface-variant">
-                Ceremony &amp; Document Language
+                {t("languageLabel")}
               </label>
               <div className="grid grid-cols-2 p-1 bg-surface-container rounded-lg gap-1">
                 <button
@@ -292,7 +301,7 @@ export default function NewWeddingPage() {
                   {formData.preferredLanguage === "en" && (
                     <span className="material-symbols-outlined text-[16px]">check</span>
                   )}
-                  <span>English (Global Std)</span>
+                  <span>{t("englishOption")}</span>
                 </button>
 
                 <button
@@ -307,7 +316,7 @@ export default function NewWeddingPage() {
                   {formData.preferredLanguage === "hi" && (
                     <span className="material-symbols-outlined text-[16px]">check</span>
                   )}
-                  <span>हिन्दी (Regional)</span>
+                  <span>{t("hindiOption")}</span>
                 </button>
               </div>
             </div>
@@ -324,11 +333,11 @@ export default function NewWeddingPage() {
                     <span className="material-symbols-outlined animate-spin text-[18px]">
                       progress_activity
                     </span>
-                    <span>Provisioning Workspace...</span>
+                    <span>{t("submittingButton")}</span>
                   </>
                 ) : (
                   <>
-                    <span>Create Wedding Workspace</span>
+                    <span>{t("submitButton")}</span>
                     <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                   </>
                 )}
@@ -343,19 +352,19 @@ export default function NewWeddingPage() {
             <span className="material-symbols-outlined text-[15px] text-secondary">
               verified_user
             </span>
-            <span>ISO 27001 Certified</span>
+            <span>{t("isoBadge")}</span>
           </div>
           <span className="text-surface-variant hidden sm:inline">•</span>
           <div className="flex items-center gap-1">
             <span className="material-symbols-outlined text-[15px] text-outline">lock</span>
-            <span>Isolated Private Workspace</span>
+            <span>{t("isolatedBadge")}</span>
           </div>
           <span className="text-surface-variant hidden sm:inline">•</span>
           <div className="flex items-center gap-1">
             <span className="material-symbols-outlined text-[15px] text-secondary">
               check_circle
             </span>
-            <span>Free to Start</span>
+            <span>{t("freeBadge")}</span>
           </div>
         </div>
       </main>
